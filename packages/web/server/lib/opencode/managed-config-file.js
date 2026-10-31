@@ -17,8 +17,8 @@ export const MANAGED_CONFIG_FILE_NAME = 'opencode.managed.json';
 const DISABLED_BUILTIN_PLUGINS = ['-opencode.browser'];
 
 /**
- * OpenCode's own `image_generate` tool (2.2.1+, opt-in through
- * `experimental.image_generate`), switched off while `openchamber_image` is
+ * OpenCode's own `experimental_image_generate` tool (2.2.1+, on by default
+ * since 2.2.2), switched off while `openchamber_image` is
  * on, so the agent sees one image tool, the one using the model the user chose.
  */
 const BUILTIN_IMAGE_PLUGIN = '-opencode.tool.image-generate';
@@ -105,14 +105,15 @@ export const createManagedConfigRuntime = ({
     const includeNotify = settings?.agentNotifyToolEnabled === true;
     const includeRender = settings?.agentRenderToolEnabled !== false;
     const includeImage = settings?.agentImageToolEnabled === true;
+    const includeSecret = settings?.agentSecretToolEnabled !== false;
     // On by default wherever the build has workflows: the build flag is the opt-in.
     const includeWorkflow = isWorkflowAvailable() && settings?.agentWorkflowToolEnabled !== false;
     const codeMode = settings?.agentToolsCodeMode === true;
 
     const directories = [];
     let permissions = [];
-    if (agentToolRuntime && (includeControl || includeSchedule || includeWeb || includeMemory || includeKnowledge || includeNotify || includeRender || includeImage || includeWorkflow)) {
-      directories.push(await agentToolRuntime.materializePlugin({ includeControl, includeSchedule, includeWeb, includeMemory, includeKnowledge, includeNotify, includeRender, includeImage, includeWorkflow, codeMode }));
+    if (agentToolRuntime && (includeControl || includeSchedule || includeWeb || includeMemory || includeKnowledge || includeNotify || includeRender || includeImage || includeSecret || includeWorkflow)) {
+      directories.push(await agentToolRuntime.materializePlugin({ includeControl, includeSchedule, includeWeb, includeMemory, includeKnowledge, includeNotify, includeRender, includeImage, includeSecret, includeWorkflow, codeMode }));
       permissions = managedPermissionRules({ includeWorkflow });
     }
     // Only while an option is on: otherwise every limit error would cost the

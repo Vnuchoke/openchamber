@@ -107,9 +107,12 @@ session of an isolated space has the space's name where the branch goes and
 `inSpace` set on its location, so the zone rows of the desktop and the phone
 mark it with the container icon the space's group carries, never with the
 branch icon. The phone lists the same rows (see The phone). VS Code excludes
-worktrees and managed
-Chats, while retaining its workspace-scoped grouped list and inline archived
-buckets.
+worktrees and, when a workspace folder is open, managed Chats. Empty VS Code
+windows show Chats. Folder windows retain their workspace-scoped grouped list
+and inline archived buckets. In empty windows the archived toggle shows a Chats
+archive bucket containing top-level sessions only. Restoring a root restores
+its archived descendants through the shared action. Web, Electron, hosted mobile
+and Capacitor keep their existing Chats and Archive views.
 
 A project lists its worktree works among the works of its root, not in a
 block after them: the row model (`mergeWorktreeEntries` in
@@ -228,6 +231,12 @@ no Shift.
   history read costs mobile data, and its list never did.
 
 
+### Why project trees resolve lineage globally
+
+The shared project tree checks parent presence against the global active and archived cache plus the merged active session list. Child expansion uses the lifecycle-ordered global graph. A child whose parent is known renders only beneath that parent, even when its own directory belongs to another project or worktree. An archived parent or intermediate never allows an active descendant to become an independent root. Project buckets contain roots only, so children do not consume root pagination or make a child-only worktree expandable. Temporary `/btw` forks and archived children remain hidden. Selection still uses each session's own directory. VS Code applies the same rule after its exact workspace filter.
+
+Bucket-local lineage promoted cross-project subagents to independent rows and left their parent without an expansion control. The missing-parent fallback applies only while both active and archived sources lack the parent, and clears when either parent arrives. The project-section cache tracks each project's visible ancestors and descendants, including their order and record identity, so a lineage or same-ID semantic change rebuilds the affected trees without replacing unrelated project sections.
+
 Both project display modes use `projects/CrossfadeZoneHeaders.tsx` for sticky
 zone headers. The live header keeps one portal host as it moves between its
 virtual row placeholder and a stationary layer inside the native scroller,
@@ -331,8 +340,8 @@ started through the openchamber tool stays a root: it is the user's own
 conversation, and its prompt links back to the sender in the transcript
 (`metadata.openchamber.promptedBy`). The `originSessionID` older builds wrote
 on such sessions is ignored. The folder decides first: a session in
-another folder stays a root there, and so does a multi-run lane. Archive,
-restore and the Archive page keep OpenCode's `parentID` only.
+another folder stays a root there, and so does a multi-run lane. See the
+archive/delete/restore invariant below for action lineage.
 `list/sessionCollection.ts` and `projects/useSessionGrouping.ts` both build
 their trees with it, so the collection's `nestedSessionIds` never lists a
 nested session as a root of its own.
@@ -584,13 +593,11 @@ is removing keeps its place in the block until git is done
 never counts. `list/SessionProjectCollection.tsx` orders the works by the first of
 their sessions in the shared lifecycle order (`orderInWorkWorks` in
 `works/sidebarWorks.ts`) and passes `workEntries` to the row model. In work
-spans projects: a session in work whose directory no added project holds (an
-agent moved it into another repository, say) is listed under the work of the
-top-level session it nests under (`buildSessionRootIndex`, over the
-collection's root sessions and `childrenMap`), with no project, as
-`lib/sidebarSessionRows.ts` describes for the tray. While the zone is shown it
-is the only place such a session appears: the list by time does not add these,
-so Done takes one out of the sidebar. A work In work lists leaves its project
+spans registered projects. A session whose destination has no registered project
+stays out of In work, Pinned and search until `sync/session-admission.ts` checks
+its OpenCode configuration and registers its folder. Pins and work state cannot
+admit a destination, including in the tray. The raw global cache retains these
+sessions for cleanup and lineage. A work In work lists leaves its project
 or folder (`movedSessionIds`, `movedGroupKeys`) unless "Also show in work
 under projects" is on; search lists every zone session once, in its zone,
 either way. VS Code always keeps them in place. Chats are never in work and
@@ -687,9 +694,9 @@ dragging a worktree onto a folder is not offered.
   project through the session ownership index first (managed worktrees live
   outside the project path), falls back to a path-prefix match, and finds the
   containing worktree by longest prefix. Branch labels are live-first.
-- A detailed zone row has two lines of fixed height (20px and 16px); the second
-  is rendered even when empty, so nothing shifts when a branch or badge
-  arrives. The first holds the title and the action indicator, pin, done hint,
+- A detailed zone row has two lines of fixed height (20px and 16px). An empty
+  second line is omitted; a project icon, branch, goal, linked reference,
+  waiting request or expansion chevron keeps it visible. The first holds the title and the action indicator, pin, done hint,
   status icon and time; hover actions cover that cluster. The second opens
   with the project's icon and holds the branch (or the space's name) and the
   state cluster: goal glyph, PR (or the zombie warning), permission/question
@@ -711,7 +718,16 @@ dragging a worktree onto a folder is not offered.
   already does; in a zone it opens with the project's icon. A worktree's
   first icon there is the worktree mark tinted by its PR; a draft's line
   opens with a pen and names the branch its session will go to once that
-  directory's git status is known.
+  directory's git status is known. A draft without a project icon, branch or
+  attachment mark uses one line.
+
+### Why empty detailed lines collapse at the row
+
+Git availability alone cannot determine whether a session has a goal, linked
+task or pending request. The row already reads those values and omits its second
+line only when it has no content or expansion control. Detailed sessions and
+drafts keep per-row measured heights in the virtualizer because their contents
+can now give rows of the same kind different heights.
 
 ## Pinned
 
@@ -905,7 +921,11 @@ matching and ordering. Search does not fetch sessions or broaden list membership
   model estimate. The virtualizer keys each row with its gap
   (`sessionSidebarRowVirtualKey`): a header gains or loses its gap as it
   closes or opens, and under its plain key the old measured height would hold
-  until the resize observer reported, so the rows below hopped a frame later. The virtualizer corrects the
+  until the resize observer reported, so the rows below hopped a frame later.
+  The key carries the size key too: a row that turns between one and two
+  lines (Detailed rows, a row gaining or losing its second line) starts
+  unmeasured, because the virtualizer keeps the measured height of a row
+  that is not mounted under its key, in the other mode's height. The virtualizer corrects the
   scroll position whenever a row above the viewport measures differently from
   its estimate, and those writes land in the middle of a scroll gesture as small
   jumps; rows of one key share a height at any interface font size, so after
@@ -921,7 +941,9 @@ matching and ordering. Search does not fetch sessions or broaden list membership
   focus.
 - Opening and closing a zone, project, worktree, folder, multi-run or a
   session's subsessions animates like a reasoning block in the chat (200ms
-  ease-out, `sessionSidebarDisclosure.ts`; a session row with subsessions
+  ease-out, `sessionSidebarDisclosure.ts` finds the block and
+  `lib/motion/rowDisclosure.ts` holds the timing and keyframes the file trees
+  share; a session row with subsessions
   carries `expanded` for it). The rows are flat virtual rows, so no
   container changes height: `SessionSidebarRows` compares each new row list
   with the one last drawn, and when exactly one header changed state with one
@@ -963,6 +985,15 @@ matching and ordering. Search does not fetch sessions or broaden list membership
   folder that accepts drops (`SessionFolderOwnersProvider`): a drag with
   nowhere to land swallowed the click that started it when the mouse moved
   8 px during the press.
+  A cross-project child keeps its display parent, while its folder menu, drag
+  payload, bulk-selection scope and Tracker links use the authoritative owner
+  of the child's own directory. The drop action resolves the current row
+  occurrence and checks that owner again before any folder write; a rejected
+  cross-owner or stale-row drop changes no memberships. Bulk folder actions
+  require a resolved owner for every selected session, including managed Chats
+  resolved from their chat root. Once resolved, folder actions include only
+  sessions owned by the selection scope: a foreign descendant automatically
+  included by subtree selection or Select all keeps its own folder memberships.
 - Session rows allow vertical touch panning before the long-press drag activates.
   The TouchSensor owns movement only after activation; disabling touch panning on
   the whole row prevents quick swipes from scrolling even when no drag starts.
@@ -978,7 +1009,7 @@ matching and ordering. Search does not fetch sessions or broaden list membership
   something is hidden, Show less once more than the first batch shows
   (maintainer, 2026-10-27). Reveal
   controls change the logical list, not the viewport's bounded mounted window.
-- Archiving or deleting a session takes its whole active subtree with it on every surface, because the server does not cascade `time.archived`. In work and managed Chats build their rows with `buildActiveSessionNode` from `list/sessionCollection.ts`, so the descendants a row collects match the project tree at any depth; the phone's swipe actions resolve the same lineage with `getDescendantIds` over every active session when they run (`apps/mobileSidebar/mobileSessionActions.ts`). `sessions/sessionSubtreeActions.ts` owns the single-versus-batch store calls and the outcome toasts for all of them, and `collectSessionSubtreeIds` extends the surface's own descendant list at action time with the global session lineage (`stores/sessionLineage.ts`), so an active subagent below an archived intermediate is still archived (archive skips the archived intermediate; delete includes it). A projection that flattens a tree to one level silently leaves grandchildren active. The project menu's "Archive all" archives the subagents of each selected session in the same batch; its dialog and success toast count top-level sessions, the rows the user sees.
+- Archiving or deleting a session includes its OpenCode subsessions and linked review sessions on every surface. Forks and promoted `/btw` sessions stay active. Rows pass only their `parentID` descendants (`collectParentIdDescendantIds`); `collectSessionSubtreeIds` adds global action lineage from `stores/sessionLineage.ts`, including reviews linked by `originalSessionID`, even when a row renders no children or a review lives in another directory. Archive reaches active descendants below archived intermediates without restamping those intermediates; delete includes archived descendants too. Restore brings back archived subsessions and reviews, stopping at active intermediates. `sessions/sessionSubtreeActions.ts` owns the store calls, partial-failure toasts and exact-ID Undo. The project menu's "Archive all" includes descendants of each selected session in the same batch; its dialog and success toast count top-level sessions.
 - Subsessions belong to the agent run that spawned them, not to the user. They appear only nested under an active parent: the archive (sidebar bucket, auto folders and the Archive page) lists top-level sessions only, an archived subsession or one under an archived parent is hidden rather than promoted to a row of its own, and there is no restore for a subsession; it comes back when its parent is restored. A subsession whose parent is not loaded yet stays visible as a root.
 - Folder membership may contain both a parent session and its descendants. Rendering treats only the highest assigned ancestors as folder roots because their normal session trees already include assigned descendants; persisted membership remains unchanged for cleanup and move semantics.
 - Sidebar selection holds the clicked row's viewport position across navigation-driven sidebar updates. Wheel or touch input cancels the hold immediately, so programmatic compensation never fights intentional scrolling.
@@ -1097,3 +1128,54 @@ The session tree frames a group instead: the line starts under the open row
 and stops at its last child with a corner, so where a worktree's or a
 session's children end reads at a glance, and a long tree is not striped by
 lines that run through rows they do not belong to.
+
+### Why the list keeps the row the user sees and not the scroll position
+
+Rows above the viewport changed and the scroll position stayed, so whatever
+the user was reading slid away. Turning Detailed rows on or off changed the
+height of every row at once: with 360 sessions and session 108 at the top,
+Compact showed session 21 and Detailed after it session 142, since the
+shorter list clamped the position at its end. A session an agent created in
+the background pushed the list down a row, five of them five rows. On every
+rows change that is not the user's own (`isSessionSidebarUserChange`),
+`SessionSidebarRows` finds the row under the line just below the pinned zone
+header (`getPinnedZoneHeaderHeight`), at the scroll position read before the
+new rows reached the DOM, and scrolls so it sits there again. A row that
+changed height keeps the same share of it above the line, not the pixel
+offset: a pixel offset into a 51px row can lie past the end of the same row
+at 32px, and a round trip through Compact then landed a row away. The line
+sits under the pinned header because the row at the scroll top is hidden by
+it; anchored there, the first row the user sees moved by 20px.
+
+The row under the line is skipped when it moved elsewhere in the list (a
+session that became active and went to the top, with its open subsessions;
+a project sorted by recent activity that went above): following it would
+scroll the list away. What stayed is found in two steps, each the longest
+run of blocks whose new positions keep their old order, so whatever is left
+out is the fewest blocks that moved. First sections, a project or zone with
+everything under its header; a tie goes to the section on screen, since a
+project going above it and it going below that project are the same change.
+Then works inside the sections that stayed, a session or run with the rows
+open under it and every other row on its own. The anchor is the first row of
+those on screen. Rules tried before this followed what moved: checking the
+row above a subsession (its parent moved with it), taking the shift most
+rows on screen share (an open tree filled the screen), and the longest run
+counted by rows or by works across projects (an open tree or a larger
+project outvoted what it jumped over).
+
+What the user does to the list keeps its own behaviour: a header opening or
+closing (it has its motion), Show more or less (the new rows show where the
+control was), subsessions shown or hidden, a search, projects dragged into
+another order. Most are told apart by what the user sets on rows: open or
+closed, the count Show more asked for (`requestedCount`; `currentCount`
+also moves as sessions arrive). A row that offers nothing to set is left
+out: a session gains or loses its chevron, and an empty group or folder is
+always open, as sessions come and go. A changed project order looks the same
+whether the user dragged it or projects sorted by recent activity moved on
+their own, so the drag says so itself: `SessionProjectScroller` marks it
+before the reorder and `takeProjectReorder` hands the mark over once, when
+the order changes. A project moving above the viewport on its own is
+anchored like a session doing so. A hidden list (the phone's while projects
+are reordered) keeps nothing. The sidebar never scrolled to a session the
+user opened or created, and still does not; the phone's drawer brings its
+row into view after the anchor (`scrollRequest`).

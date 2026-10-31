@@ -6,13 +6,14 @@ import type { GroupSearchData, SessionGroup, SessionNode } from './types';
 import type { ProjectSection } from './projects/sessionProjectRender';
 import { buildGroupRenderDescriptors } from './projects/sessionProjectRender';
 import { normalizeFolderRoots, selectFolderIdsForProjection, selectFolderRootNodes, type BlockingBadgeSessionScope } from './sessions/sessionNodeItemUtils';
-import { getSessionFolderIdentityKey, getSessionFolderOwnerKey, getSessionFolderScopes, isArchivedFolderScope } from './sessions/sessionFolderIdentity';
+import { getAuthoritativeSessionFolderOwnerKey, getSessionFolderIdentityKey, getSessionFolderOwnerKey, getSessionFolderScopes, isArchivedFolderScope } from './sessions/sessionFolderIdentity';
 import type { SessionRowOrderEntry } from './sessions/sessionRowOrder';
 import { computeSessionTreeGuides, type SessionTreeGuide } from './sessions/sessionTreeGeometry';
 import { countSessionTreeQueryMatches } from './recent/activitySections';
 import { EMPTY_MULTI_RUN_INDEX, type MultiRunIndex, type MultiRunSummary } from '@/lib/multirun/runs';
 import { isGroupWork, worktreeFolderMemberId } from './works/sidebarWorks';
 import type { SessionDraft } from '@/stores/useSessionDraftsStore';
+import type { DirectoryOwner } from './sessions/sessionOwnership';
 
 export type SessionSidebarActivityItem = {
   node: SessionNode;
@@ -86,7 +87,7 @@ export type SessionSidebarRow =
   // `ownsWork`: the row is a work of its own, so it offers Track / Done.
   // What nests under a session, a lane of a run and a session of a worktree
   // work belong to the work above them, which tracks and finishes them all.
-  | (RowBase & { kind: 'session'; node: SessionNode; blockingBadgeSessionScopes?: readonly BlockingBadgeSessionScope[]; depth: number; ownsWork: boolean; projectId: string | null; groupDirectory: string | null; ownerKey: string | null; selectionScopeKey: string | null; archived: boolean; renderContext: SessionSidebarRenderContext; secondaryMeta: SessionSidebarActivityItem['secondaryMeta']; detailed?: boolean; expanded?: boolean; forceExpanded?: boolean })
+  | (RowBase & { kind: 'session'; node: SessionNode; blockingBadgeSessionScopes?: readonly BlockingBadgeSessionScope[]; depth: number; ownsWork: boolean; projectId: string | null; ownerProjectId: string | null; groupDirectory: string | null; ownerKey: string | null; selectionScopeKey: string | null; archived: boolean; renderContext: SessionSidebarRenderContext; secondaryMeta: SessionSidebarActivityItem['secondaryMeta']; detailed?: boolean; expanded?: boolean; forceExpanded?: boolean })
   // A multi-run: one derived parent row over its member sessions. It is not a
   // session, so it never enters selection, and its lanes render as session
   // rows one level deeper when it is expanded.
@@ -99,8 +100,11 @@ export type SessionSidebarRow =
   // gutterless timeline-style rows, otherwise with the tree level `depth`.
   | (RowBase & { kind: 'empty'; emptyKind: 'sidebar' | 'search' | 'archived'; depth?: number })
   | (RowBase & { kind: 'status'; status: SessionSidebarGroupStatus; group: SessionGroup; groupKey: string; depth?: number; flat?: boolean })
-  /** Show more while rows remain hidden, Show less once more than the first batch shows; one row holds both. */
-  | (RowBase & { kind: 'show-control'; more: boolean; fewer: boolean; containerKey: string; currentCount: number; increment: number; depth?: number; flat?: boolean });
+  /**
+   * Show more while rows remain hidden, Show less once more than the first batch shows; one row holds both.
+   * `requestedCount`: how many the user asked for; `currentCount` also moves as sessions arrive and leave.
+   */
+  | (RowBase & { kind: 'show-control'; more: boolean; fewer: boolean; containerKey: string; currentCount: number; requestedCount: number; increment: number; depth?: number; flat?: boolean });
 
 export type SessionSidebarStickyHeader = {
   rowIndex: number;
@@ -125,6 +129,9 @@ export type SessionSidebarRowModel = {
   folderDropTargets: readonly SessionSidebarFolderTarget[];
   folderAuthorityByOwner: ReadonlyMap<string, SessionSidebarOwnerAuthority>;
   sessionById: ReadonlyMap<string, Session>;
+  folderOwnerKeyBySessionId: ReadonlyMap<string, string>;
+  /** The rows answer a search: the user filters them, so the list keeps no row in place. */
+  search: boolean;
   searchMatchCount: number;
 };
 
@@ -133,6 +140,7 @@ export type SessionSidebarRowModelArgs = {
   sections: readonly ProjectSection[];
   authoritativeSections: readonly ProjectSection[];
   chatGroup: SessionGroup | null;
+  archivedChatGroup?: SessionGroup | null;
   /** Pinned sessions, already ordered and search-filtered; they stay under their project too. */
   pinnedItems?: readonly SessionSidebarActivityItem[];
   /** Pinned worktree works, listed after the pinned sessions, the latest pin first; they leave their project. */
@@ -181,6 +189,7 @@ export type SessionSidebarRowModelArgs = {
   liveSpaceIds?: ReadonlySet<string>;
   groupStatusByKey: ReadonlyMap<string, SessionSidebarGroupStatus>;
   folderAuthorityByOwner: ReadonlyMap<string, SessionSidebarOwnerAuthority>;
+  sessionOwnerById: ReadonlyMap<string, DirectoryOwner>;
   activeProjectId: string | null;
   singleProjectMode: boolean;
   singleProjectId: string | null;
@@ -446,6 +455,7 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
   const stickyHeaders: SessionSidebarStickyHeader[] = [];
   const folderDropTargets: SessionSidebarFolderTarget[] = [];
   const sessionById = new Map<string, Session>();
+  const folderOwnerKeyBySessionId = new Map<string, string>();
   const keyOccurrences = new Map<string, number>();
   const search = args.mode === 'search';
   const pinned = args.pinnedSessionIds instanceof Set ? args.pinnedSessionIds : new Set(args.pinnedSessionIds);
@@ -461,12 +471,15 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
   const authoritativeRoots = [
     ...args.authoritativeSections.flatMap((section) => section.groups.flatMap((group) => group.sessions)),
     ...(args.chatGroup?.sessions ?? []),
+    ...(args.archivedChatGroup?.sessions ?? []),
   ];
   const authorityStack = [...authoritativeRoots];
   while (authorityStack.length > 0) {
     const node = authorityStack.pop();
     if (!node) continue;
     sessionById.set(node.session.id, node.session);
+    const folderOwnerKey = getAuthoritativeSessionFolderOwnerKey(node.session, args.sessionOwnerById.get(node.session.id));
+    if (folderOwnerKey) folderOwnerKeyBySessionId.set(node.session.id, folderOwnerKey);
     authorityStack.push(...node.children);
   }
 
@@ -484,7 +497,6 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
     containerKey: string;
     projectId: string | null;
     groupDirectory: string | null;
-    ownerKey: string | null;
     selectionScopeKey: string | null;
     archived: boolean;
     renderContext: SessionSidebarRenderContext;
@@ -566,6 +578,11 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
       const rowContext: SessionSidebarRenderContext = current.depth > baseDepth && options.renderContext === 'timeline-mixed'
         ? 'mixed-compact'
         : options.renderContext;
+      const sessionOwner = args.sessionOwnerById.get(current.node.session.id);
+      const ownerKey = getAuthoritativeSessionFolderOwnerKey(current.node.session, sessionOwner)
+        ?? folderOwnerKeyBySessionId.get(current.node.session.id)
+        ?? null;
+      const selectionScopeKey = options.selectionScopeKey === null ? null : ownerKey;
       // Whether its subsessions show, for a row that has some: the sidebar
       // animates the change like a header's.
       const expanded = search || args.expandedParents.has(expandedKey(rowContext, options.archived, current.node.session.id));
@@ -583,9 +600,10 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
         depth: current.depth,
         ownsWork: options.insideWork !== true && current.depth === baseDepth,
         projectId: options.projectId,
+        ownerProjectId: sessionOwner?.projectId ?? null,
         groupDirectory: current.directory,
-        ownerKey: options.ownerKey,
-        selectionScopeKey: options.selectionScopeKey,
+        ownerKey,
+        selectionScopeKey,
         archived: options.archived,
         renderContext: rowContext,
         secondaryMeta: options.getSecondaryMeta
@@ -602,7 +620,7 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
       selectionEntries.push(Object.freeze({
         id: current.node.session.id,
         rowKey,
-        scopeKey: options.selectionScopeKey,
+        scopeKey: selectionScopeKey,
         archived: options.archived,
         descendantRange,
       }));
@@ -785,7 +803,7 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
       });
       if (ownerKey) folderDropTargets.push(Object.freeze({ rowKey: folderKey, scopeKey: entry.scopeKey, folderId: entry.folder.id, ownerKey, enabled: dropEnabled }));
       if (folderCollapsed) return;
-      appendSessions({ nodes: entry.nodes, containerKey: folderKey, projectId, groupDirectory: entry.scopeDirectory ?? group.directory, ownerKey, selectionScopeKey: ownerKey, archived: group.isArchivedBucket === true, renderContext: 'project', indexedNodes: indexed, selectionPoolOffset, baseDepth: contentDepth + 1, detailedRoots: detailedWorks, secondaryMeta: detailedMeta, insideWork });
+      appendSessions({ nodes: entry.nodes, containerKey: folderKey, projectId, groupDirectory: entry.scopeDirectory ?? group.directory, selectionScopeKey: ownerKey, archived: group.isArchivedBucket === true, renderContext: 'project', indexedNodes: indexed, selectionPoolOffset, baseDepth: contentDepth + 1, detailedRoots: detailedWorks, secondaryMeta: detailedMeta, insideWork });
       for (const worktree of folderWorktrees) {
         appendGroup(worktree.group, worktree.groupKey, projectId, false, undefined, {
           keyPrefix: '', depth: contentDepth + 1, mixed: false,
@@ -822,7 +840,7 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
     let pendingNodes: SessionNode[] = [];
     const flushSessions = (): void => {
       if (pendingNodes.length === 0) return;
-      appendSessions({ nodes: pendingNodes, containerKey: rowKeyBase, projectId, groupDirectory: group.directory, ownerKey, selectionScopeKey: ownerKey, archived: group.isArchivedBucket === true, renderContext: limits?.renderContext ?? 'project', indexedNodes: indexed, selectionPoolOffset, baseDepth: contentDepth, detailedRoots: detailedWorks, secondaryMeta: detailedMeta, insideWork });
+      appendSessions({ nodes: pendingNodes, containerKey: rowKeyBase, projectId, groupDirectory: group.directory, selectionScopeKey: ownerKey, archived: group.isArchivedBucket === true, renderContext: limits?.renderContext ?? 'project', indexedNodes: indexed, selectionPoolOffset, baseDepth: contentDepth, detailedRoots: detailedWorks, secondaryMeta: detailedMeta, insideWork });
       pendingNodes = [];
     };
     for (const entry of visibleEntries) {
@@ -842,7 +860,7 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
     const more = remaining > 0;
     const fewer = requested > initialLimit && limitedNodes.length > initialLimit;
     if (!search && !group.isArchivedBucket && (more || fewer)) {
-      push({ kind: 'show-control', key: `${rowKeyBase}:show`, estimateSize: STATUS_ESTIMATE, more, fewer, containerKey: groupKey, currentCount: limitedVisibleCount, increment, depth: contentDepth, flat: false });
+      push({ kind: 'show-control', key: `${rowKeyBase}:show`, estimateSize: STATUS_ESTIMATE, more, fewer, containerKey: groupKey, currentCount: limitedVisibleCount, requestedCount: requested, increment, depth: contentDepth, flat: false });
     }
 
     // An empty group lists nothing: its header has no chevron, and new
@@ -889,7 +907,6 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
     const indexed = indexNodes(lanes);
     const selectionPoolOffset = selectionDescendantIds.length;
     selectionDescendantIds.push(...indexed.preorderIds);
-    const ownerKey = getSessionFolderOwnerKey(first.projectId, first.groupDirectory);
     const metaById = new Map(entry.items.map((item) => [
       item.node.session.id,
       item.getSecondaryMeta ? item.getSecondaryMeta(item.node.session.id) : item.secondaryMeta,
@@ -897,7 +914,7 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
     const badgeScopesById = new Map(entry.items.map((item) => [item.node.session.id, item.blockingBadgeSessionScopes]));
     appendRun({ run: entry.run, lanes }, {
       nodes: lanes, containerKey, projectId: first.projectId, groupDirectory: first.groupDirectory,
-      ownerKey, selectionScopeKey: null, archived: false, renderContext,
+      selectionScopeKey: null, archived: false, renderContext,
       getSecondaryMeta: (sessionId) => metaById.get(sessionId) ?? null,
       getBlockingBadgeSessionScopes: (sessionId) => badgeScopesById.get(sessionId),
       indexedNodes: indexed, selectionPoolOffset,
@@ -923,11 +940,10 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
       const indexed = indexNodes([item.node]);
       const selectionPoolOffset = selectionDescendantIds.length;
       selectionDescendantIds.push(...indexed.preorderIds);
-      const ownerKey = getSessionFolderOwnerKey(item.projectId, item.groupDirectory);
       appendSessions({
         nodes: [item.node], containerKey, projectId: item.projectId, groupDirectory: item.groupDirectory,
         // Zone lists carry no selection scope.
-        ownerKey, selectionScopeKey: null, archived: false, renderContext,
+        selectionScopeKey: null, archived: false, renderContext,
         blockingBadgeSessionScopes: item.blockingBadgeSessionScopes,
         secondaryMeta: item.secondaryMeta, getSecondaryMeta: item.getSecondaryMeta, indexedNodes: indexed, selectionPoolOffset,
       });
@@ -936,7 +952,7 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
   };
 
   if (args.chatGroup) {
-    if (!search || groupSearchMatches(args.chatGroup) > 0) {
+    if (!search || groupSearchMatches(args.chatGroup) > 0 || (args.archivedChatGroup && groupSearchMatches(args.archivedChatGroup) > 0)) {
       const collapsed = appendActivityHeader('chats');
       if (!collapsed) {
         // Chats are one-line rows with the tree's state slot, on a short page
@@ -945,6 +961,9 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
           initial: CHATS_INITIAL_LIMIT, increment: CHATS_INCREMENT, pinnedAlwaysVisible: true,
           renderContext: 'tree-chat',
         });
+        if (args.archivedChatGroup) {
+          appendGroup(args.archivedChatGroup, 'activity:chats:archived', null, false, { renderContext: 'tree-chat' });
+        }
       }
     }
   }
@@ -1148,7 +1167,9 @@ export const buildSessionSidebarRowModel = (args: SessionSidebarRowModelArgs): S
     stickyHeaders: Object.freeze(stickyHeaders),
     folderDropTargets: Object.freeze(folderDropTargets),
     folderAuthorityByOwner: args.folderAuthorityByOwner,
+    folderOwnerKeyBySessionId,
     sessionById,
+    search,
     searchMatchCount: search ? searchMatchCount : 0,
   });
 };
