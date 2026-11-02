@@ -14,6 +14,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -24,8 +25,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -178,6 +181,7 @@ export const dict: Record<I18nKey, string> = {
   ...fileEditorAidsI18n.ko,
   ...htmlRenderI18n.ko,
   ...documentToolbarI18n.ko,
+  ...uiBlocksI18n.ko,
   ...updateDialogCanaryI18n.ko,
   ...secretRequestI18n.ko,
   ...sessionNoticesI18n.ko,
@@ -188,8 +192,10 @@ export const dict: Record<I18nKey, string> = {
   ...heapSnapshotI18n.ko,
   ...consoleBudgetsI18n.ko,
   ...imageToolI18n.ko,
+  ...agentStatusI18n.ko,
   ...snippetsI18n.ko,
   ...sidebarWorkI18n.ko,
+  ...sidebarSectionsI18n.ko,
   ...worktreeArchiveI18n.ko,
   ...overviewI18n.ko,
   ...isolatedSpacesI18n.ko,
@@ -470,6 +476,7 @@ export const dict: Record<I18nKey, string> = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': '먼저 프로젝트를 선택하세요',
   'sessions.scheduledTasks.dialog.toast.loadFailed': '예약 작업 로드 실패',
   'sessions.scheduledTasks.dialog.toast.saved': '예약 작업 저장됨',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': '작업이 이제 새 위치에서 실행되지만 이전 사본을 삭제하지 못했습니다. 작업이 두 번 실행되지 않도록 해당 위치에서 삭제하세요.',
   'sessions.scheduledTasks.dialog.toast.updateFailed': '작업 업데이트 실패',
   'sessions.scheduledTasks.dialog.toast.deleted': '예약 작업 삭제됨',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': '작업 삭제 실패',
@@ -688,7 +695,6 @@ export const dict: Record<I18nKey, string> = {
   'header.sourceControl.avatarWithLogin': '{login} 아바타',
   'header.sourceControl.avatar': '{provider} 아바타',
   'header.sourceControl.accountsTitle': '{provider} 계정',
-  'header.sessionTabs.tabMenuAria': '세션 탭 작업',
   'header.sessionTabs.closeTab': '탭 닫기',
   'header.sessionTabs.closeOtherTabs': '다른 탭 닫기',
   'sessions.switcher.empty': '최근 세션 없음',
@@ -2262,7 +2268,7 @@ export const dict: Record<I18nKey, string> = {
   'helpDialog.item.togglePromptNavigator': '프롬프트 탐색기 표시/숨기기',
   'helpDialog.item.abortActiveRun': '활성 실행 중단(두 번 누르기)',
   'helpDialog.item.toggleTerminalDock': '터미널 독 전환',
-  'helpDialog.item.toggleTerminalExpanded': '터미널 펼치기/접기',
+  'helpDialog.item.toggleContextPanelExpanded': '패널 펼치기/접기',
   'helpDialog.item.cycleTheme': '테마 순환(라이트 → 다크 → 시스템)',
   'helpDialog.item.switchSessionTab': '세션 탭 전환',
   'helpDialog.item.switchContextSurface': '컨텍스트 패널 서피스 전환(숫자 키)',
@@ -2357,6 +2363,7 @@ export const dict: Record<I18nKey, string> = {
   'session.githubIntegration.validation.failed': '유효성 검사에 실패했습니다',
   'chat.fileAttachment.toast.attachFailed': '첨부 파일 실패',
   'chat.fileAttachment.toast.tooLarge': '{name}은(는) 너무 커서 첨부할 수 없습니다({size} 초과). 프로젝트에 있는 파일이면 @로 멘션하세요.',
+  'chat.fileAttachment.toast.overSendLimit': '{name}은(는) 너무 커서 첨부할 수 없습니다({size} 초과).',
   'chat.fileAttachment.toast.someFilesSkipped': '일부 파일을 건너뛰었습니다:\n{summary}',
   'chat.fileAttachment.toast.vscodePickFailed': 'VS Code에서 파일 선택에 실패했습니다',
   'chat.fileAttachment.fileFallback': '파일',
@@ -2426,7 +2433,7 @@ export const dict: Record<I18nKey, string> = {
   'chat.statusRow.todo.priority.low': '낮은 우선순위',
   'chat.statusRow.actions.stopGeneratingAria': '생성 중지',
   'chat.statusRow.tasksTitle': '작업',
-  'chat.statusRow.modelStatus': '{model} · {status}',
+  'chat.statusRow.modelStatus': '{model}: {status}',
   'chat.statusRow.summary.activeLeft': '{active}개 활성 · {left}개 남음',
   'chat.revertIndicator.redo': '다시 실행',
   'chat.revertIndicator.redoAria': '다시 실행 — 되돌린 메시지 복원',
@@ -3013,7 +3020,6 @@ export const dict: Record<I18nKey, string> = {
   'projectEditDialog.toast.iconDiscovered': '프로젝트 아이콘을 찾았습니다',
   'openInApp.actions.open': '열기',
   'openInApp.actions.openInAria': '{app}에서 열기',
-  'openInApp.actions.chooseAppAria': '열 앱 선택',
   'openInApp.actions.copyPath': '경로 복사',
   'openInApp.actions.refreshApps': '앱 새로고침',
   'openInApp.toast.pathCopied': '경로를 클립보드에 복사했습니다',

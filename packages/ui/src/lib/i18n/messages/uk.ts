@@ -14,6 +14,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -24,8 +25,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -188,6 +191,7 @@ export const dict: Record<I18nKey, string> = {
   ...fileEditorAidsI18n.uk,
   ...htmlRenderI18n.uk,
   ...documentToolbarI18n.uk,
+  ...uiBlocksI18n.uk,
   ...updateDialogCanaryI18n.uk,
   ...secretRequestI18n.uk,
   ...sessionNoticesI18n.uk,
@@ -198,8 +202,10 @@ export const dict: Record<I18nKey, string> = {
   ...heapSnapshotI18n.uk,
   ...consoleBudgetsI18n.uk,
   ...imageToolI18n.uk,
+  ...agentStatusI18n.uk,
   ...snippetsI18n.uk,
   ...sidebarWorkI18n.uk,
+  ...sidebarSectionsI18n.uk,
   ...worktreeArchiveI18n.uk,
   ...overviewI18n.uk,
   ...isolatedSpacesI18n.uk,
@@ -479,6 +485,7 @@ export const dict: Record<I18nKey, string> = {
   "sessions.scheduledTasks.dialog.error.chooseProjectFirst": "Спочатку виберіть проєкт",
   "sessions.scheduledTasks.dialog.toast.loadFailed": "Не вдалося завантажити заплановані завдання",
   "sessions.scheduledTasks.dialog.toast.saved": "Заплановане завдання збережено",
+  "sessions.scheduledTasks.dialog.toast.moveLeftOriginal": "Завдання тепер запускається в новому місці, але стару копію не вдалося видалити. Видаліть її там, щоб завдання не запускалося двічі.",
   "sessions.scheduledTasks.dialog.toast.updateFailed": "Не вдалося оновити завдання",
   "sessions.scheduledTasks.dialog.toast.deleted": "Заплановане завдання видалено",
   "sessions.scheduledTasks.dialog.toast.deleteFailed": "Не вдалося видалити завдання",
@@ -692,7 +699,6 @@ export const dict: Record<I18nKey, string> = {
   "sessions.archivePage.restoreSessionAria": "Відновити {title}",
   "sessions.switcher.openAria": "Відкрити перемикач сесій",
   "header.sessionTabs.stripAria": "Відкриті сесії",
-  "header.sessionTabs.tabMenuAria": "Дії вкладки сесії",
   "header.sessionTabs.closeTab": "Закрити вкладку",
   "header.sessionTabs.closeOtherTabs": "Закрити інші вкладки",
   "sessions.switcher.empty": "Немає недавніх сесій",
@@ -2231,7 +2237,7 @@ export const dict: Record<I18nKey, string> = {
   "helpDialog.item.togglePromptNavigator": "Показати або приховати навігатор промптів",
   "helpDialog.item.abortActiveRun": "Перервати активний запуск (подвійне натискання)",
   "helpDialog.item.toggleTerminalDock": "Перемкнути панель терміналу",
-  "helpDialog.item.toggleTerminalExpanded": "Розгорнути або згорнути термінал",
+  "helpDialog.item.toggleContextPanelExpanded": "Розгорнути або згорнути панель",
   "helpDialog.item.cycleTheme": "Перемкнути тему (Світла → Темна → Системна)",
   "helpDialog.item.switchSessionTab": "Перемкнути вкладку сесії",
   "helpDialog.item.switchContextSurface": "Перемкнути поверхню панелі контексту (цифрова клавіша)",
@@ -2326,6 +2332,7 @@ export const dict: Record<I18nKey, string> = {
   "session.githubIntegration.validation.failed": "Помилка перевірки",
   "chat.fileAttachment.toast.attachFailed": "Не вдалося прикріпити файл",
   "chat.fileAttachment.toast.tooLarge": "{name} завеликий, щоб прикріпити (понад {size}). Якщо файл є в проєкті, згадайте його через @.",
+  "chat.fileAttachment.toast.overSendLimit": "{name} завеликий, щоб прикріпити (понад {size}).",
   "chat.fileAttachment.toast.someFilesSkipped": "Деякі файли були пропущені:\n{summary}",
   "chat.fileAttachment.toast.vscodePickFailed": "Не вдалося вибрати файли в VS Code",
   "chat.fileAttachment.fileFallback": "файл",
@@ -2395,7 +2402,7 @@ export const dict: Record<I18nKey, string> = {
   "chat.statusRow.todo.priority.low": "Низький пріоритет",
   "chat.statusRow.actions.stopGeneratingAria": "Припинити генерацію",
   "chat.statusRow.tasksTitle": "завдання",
-  "chat.statusRow.modelStatus": "{model} · {status}",
+  "chat.statusRow.modelStatus": "{model} {status}",
   "chat.statusRow.summary.activeLeft": "Активних: {active} · залишилось: {left}",
   "chat.revertIndicator.redo": "Повторити",
   "chat.revertIndicator.redoAria": "Повторити — відновити відкочені повідомлення",
@@ -2970,7 +2977,6 @@ export const dict: Record<I18nKey, string> = {
   "projectEditDialog.toast.iconDiscovered": "Виявлено значок проєкту",
   "openInApp.actions.open": "Відкрити",
   "openInApp.actions.openInAria": "Відкрити в {app}",
-  "openInApp.actions.chooseAppAria": "Вибрати програму для відкриття",
   "openInApp.actions.copyPath": "Копіювати шлях",
   "openInApp.actions.refreshApps": "Оновити застосунки",
   "openInApp.toast.pathCopied": "Шлях скопійовано в буфер обміну",

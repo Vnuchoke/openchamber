@@ -13,6 +13,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -23,8 +24,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -419,6 +422,7 @@ export const dict = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': 'יש לבחור פרויקט קודם',
   'sessions.scheduledTasks.dialog.toast.loadFailed': 'טעינת המשימות המתוזמנות נכשלה',
   'sessions.scheduledTasks.dialog.toast.saved': 'המשימה המתוזמנת נשמרה',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': 'המשימה רצה עכשיו במקום החדש, אבל לא ניתן היה למחוק את העותק הישן. מחקו אותו שם כדי שהמשימה לא תרוץ פעמיים.',
   'sessions.scheduledTasks.dialog.toast.updateFailed': 'עדכון המשימה נכשל',
   'sessions.scheduledTasks.dialog.toast.deleted': 'המשימה המתוזמנת נמחקה',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': 'מחיקת המשימה נכשלה',
@@ -637,7 +641,6 @@ export const dict = {
   'header.sourceControl.avatarWithLogin': 'תמונת הפרופיל של {login}',
   'header.sourceControl.avatar': 'תמונת פרופיל ב-{provider}',
   'header.sourceControl.accountsTitle': 'חשבונות {provider}',
-  'header.sessionTabs.tabMenuAria': 'פעולות לכרטיסיית ההפעלה',
   'header.sessionTabs.closeTab': 'סגור כרטיסייה',
   'header.sessionTabs.closeOtherTabs': 'סגור כרטיסיות אחרות',
   'sessions.switcher.empty': 'אין הפעלות אחרונות',
@@ -2190,7 +2193,7 @@ export const dict = {
   'helpDialog.item.togglePromptNavigator': 'הצג/הסתר את ניווט ההנחיות',
   'helpDialog.item.abortActiveRun': 'עצור את ההרצה הפעילה (לחיצה כפולה)',
   'helpDialog.item.toggleTerminalDock': 'הצג/הסתר את מעגן המסוף',
-  'helpDialog.item.toggleTerminalExpanded': 'הרחב/כווץ את המסוף',
+  'helpDialog.item.toggleContextPanelExpanded': 'הרחבה או כיווץ של החלונית',
   'helpDialog.item.switchSessionTab': 'מעבר בין כרטיסיות הפעלה',
   'helpDialog.item.switchContextSurface': 'מעבר בין תצוגות חלונית ההקשר (מקש מספר)',
   'helpDialog.item.cycleTheme': 'מעבר בין ערכות נושא (בהירה → כהה → מערכת)',
@@ -2285,6 +2288,7 @@ export const dict = {
   'session.githubIntegration.validation.failed': 'האימות נכשל',
   'chat.fileAttachment.toast.attachFailed': 'לא ניתן היה לצרף את הקובץ',
   'chat.fileAttachment.toast.tooLarge': '{name} גדול מדי לצירוף (מעל {size}). אם הקובץ נמצא בפרויקט, אפשר לאזכר אותו עם @.',
+  'chat.fileAttachment.toast.overSendLimit': '{name} גדול מדי לצירוף (מעל {size}).',
   'chat.fileAttachment.toast.someFilesSkipped': "חלק מהקבצים דולגו:\n{summary}",
   'chat.fileAttachment.toast.vscodePickFailed': 'לא ניתן היה לבחור קבצים ב-VS Code',
   'chat.fileAttachment.fileFallback': 'קובץ',
@@ -2354,7 +2358,7 @@ export const dict = {
   'chat.statusRow.todo.priority.low': 'עדיפות נמוכה',
   'chat.statusRow.actions.stopGeneratingAria': 'עצור יצירה',
   'chat.statusRow.tasksTitle': 'משימות',
-  'chat.statusRow.modelStatus': '{model} במצב {status}',
+  'chat.statusRow.modelStatus': '{model} {status}',
   'chat.statusRow.summary.activeLeft': '{active} פעילות · {left} נותרו',
   'chat.revertIndicator.redo': 'בצע שוב',
   'chat.revertIndicator.redoAria': 'בצע שוב — שחזור ההודעות שבוטלו',
@@ -2941,7 +2945,6 @@ export const dict = {
   'projectEditDialog.toast.iconDiscovered': 'סמל הפרויקט אותר',
   'openInApp.actions.open': 'פתח',
   'openInApp.actions.openInAria': 'פתח ב-{app}',
-  'openInApp.actions.chooseAppAria': 'בחר יישום לפתיחה',
   'openInApp.actions.copyPath': 'העתק נתיב',
   'openInApp.actions.refreshApps': 'רענן יישומים',
   'openInApp.toast.pathCopied': 'הנתיב הועתק ללוח',
@@ -3855,6 +3858,7 @@ export const dict = {
   ...fileEditorAidsI18n.he,
   ...htmlRenderI18n.he,
   ...documentToolbarI18n.he,
+  ...uiBlocksI18n.he,
   ...updateDialogCanaryI18n.he,
   ...secretRequestI18n.he,
   ...sessionNoticesI18n.he,
@@ -3865,8 +3869,10 @@ export const dict = {
   ...heapSnapshotI18n.he,
   ...consoleBudgetsI18n.he,
   ...imageToolI18n.he,
+  ...agentStatusI18n.he,
   ...snippetsI18n.he,
   ...sidebarWorkI18n.he,
+  ...sidebarSectionsI18n.he,
   ...worktreeArchiveI18n.he,
   ...overviewI18n.he,
   ...isolatedSpacesI18n.he,

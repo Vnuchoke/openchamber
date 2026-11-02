@@ -95,8 +95,10 @@ the list by time use this same ownership resolver, on the phone too; rows keep
 the session's own directory while taking display ownership (project id,
 labels) from the index.
 
-Web and desktop show managed Chats, then Pinned and In work, then the projects
-or the list by time (see One view). There is no Recent zone any more (removed
+Web and desktop show the sections in the order the user arranged them: by
+default managed Chats, then Pinned and In work, then the projects or the list by
+time (see One view). The user's own sections, groups of projects and Pin to
+lists are in `sections/DOCUMENTATION.md`. There is no Recent zone any more (removed
 2026-10): In work holds the works in progress, and the list by time answers
 "what was I doing" across projects. Chats use
 their shared managed root for folders and never expose worktree actions. Project
@@ -233,7 +235,7 @@ no Shift.
 
 ### Why project trees resolve lineage globally
 
-The shared project tree checks parent presence against the global active and archived cache plus the merged active session list. Child expansion uses the lifecycle-ordered global graph. A child whose parent is known renders only beneath that parent, even when its own directory belongs to another project or worktree. An archived parent or intermediate never allows an active descendant to become an independent root. Project buckets contain roots only, so children do not consume root pagination or make a child-only worktree expandable. Temporary `/btw` forks and archived children remain hidden. Selection still uses each session's own directory. VS Code applies the same rule after its exact workspace filter.
+The shared project tree checks parent presence against the global active and archived cache plus the merged active session list. Child expansion uses the lifecycle-ordered global graph. A child whose parent is known renders only beneath that parent, even when its own directory belongs to another project or worktree. An archived parent or intermediate never allows an active descendant to become an independent root. Project buckets contain roots only, so children do not consume root pagination or make a child-only worktree expandable. Temporary `/btw` forks and archived children remain hidden. Workflow agents (`metadata.openchamber.kind === 'workflow-agent'`) stay in the tree but get no rows, and neither does what they started (`listedChildren`): one run can start a hundred, and the run's card and Workflows panel list them. Their pending requests and activity still count for the row above, so an expanded parent's badge scope includes them (`selectBlockingBadgeSessionScopes`). Selection still uses each session's own directory. VS Code applies the same rule after its exact workspace filter.
 
 Bucket-local lineage promoted cross-project subagents to independent rows and left their parent without an expansion control. The missing-parent fallback applies only while both active and archived sources lack the parent, and clears when either parent arrives. The project-section cache tracks each project's visible ancestors and descendants, including their order and record identity, so a lineage or same-ID semantic change rebuilds the affected trees without replacing unrelated project sections.
 
@@ -246,9 +248,11 @@ start for boundary measurement. Row and header resizing or virtual-start changes
 refresh cached boundaries; scrolling only compares those offsets
 and changes the DOM at a zone handoff. An inert, accessibility-hidden snapshot of
 the outgoing header fades over the incoming header for 150 ms. Reduced motion
-skips the fade. Project dragging temporarily returns headers to their sections
-without remounting controls. Only project headers take part in the sort, so
-nothing else shifts under the pointer and a drop always lands on a project.
+skips the fade. Dragging a project or a section temporarily returns headers to
+their sections without remounting controls. Only headers of the dragged kind
+take part in the sort (`sessionFolderCollision` by sort group), so nothing else
+shifts under the pointer and a drop always lands on a header of that kind: a
+project among the projects of its own caption, a section among sections.
 Reordering refreshes boundaries using layout offsets
 that include virtual positioning but exclude sortable transforms, so settling
 animations cannot leave stale header positions. The sidebar has no separate
@@ -361,9 +365,13 @@ the task title (the branch description,
 `WorktreeMetadata.title`; a worktree made for a pull request or an issue
 starts with that item's title, the agent's until replaced), until it has one
 the branch (see Task titles below for the branch-first option); the tooltip
-always names the branch. At the end sits the PR or the issue its sessions follow as a mark in its state's
-colour without its number (one line has no room for it; the mark's tooltip names it and a click
-opens it). It shows no date and no session
+always names the branch. A worktree's PR shows only as its branch mark's
+tint, with the PR in the row's tooltip, whose link opens it: a PR mark at the
+end repeated the same colour (maintainer decision 2026-10-31). A space's mark
+takes no tint, so a space keeps the PR mark at the end. Without a PR the end
+holds the issue its sessions follow, as a mark in its state's colour without
+its number (one line has no room for it; the mark's tooltip names it and a
+click opens it). It shows no date and no session
 count, like the rows around it: the room goes to the title. Every icon before a one-line title
 moves the hover mask in by its width (`--oc-actions-inset`), or the title's
 tail shows through the hover actions. A click opens the latest
@@ -500,10 +508,12 @@ it replaced (`resolveSidebarGrouping`: List sorted by time keeps the list by
 time, everything else groups by project); the phone follows the same
 setting, and VS Code always groups by project. The display menu opens with Select sessions, then Grouping, then
 (grouped by project) the project sort and project display,
-then the section toggles (Chats, Pinned, In work), "Also show in work under
-projects" (`keepWorkInPlace`, `sidebarKeepWorkInPlace`, off by default, shown
-while In work is), Detailed rows, "Name worktrees by branch", then Collapse
-all / Expand all.
+then Sections…, which opens the sections manager beside the sidebar (the order,
+each section's visibility, "Also show in work under projects" under In work
+(`keepWorkInPlace`, `sidebarKeepWorkInPlace`, off by default) and the user's
+own sections), Detailed rows, "Name worktrees by branch", then Collapse all /
+Expand all. The phone's display menu keeps its toggles and lists the user's
+sections as toggles too; it has no manager.
 
 - Chats rows are one line with the tree's slot (`'tree-chat'`). Chats open
   with a reveal of 3 and 7 more per Show more; pinned chats are always shown
@@ -529,15 +539,20 @@ all / Expand all.
   runs) take 5px of vertical padding (a 30px row) and two-line rows 6px, so the one-line
   list reads denser (maintainer, 2026-10-28).
   A zone's label is a bare muted word at the row's size, with no icon, and
-  the widest gap above it (20px); its chevron follows the word, always while
+  the widest gap above it (16px: with the user's sections there are more of
+  them, and 20px left wide empty bands, maintainer 2026-11-01); its chevron follows the word, always while
   the zone is closed and on hover while it is open. At a project's weight
   zones made the list read as a document of sections, and a quiet label with
   an icon in the projects' column read as one more row (maintainer,
   2026-10-28). Projects are set apart by
   space alone (`sectionSpacingAfter`): 12px before a project that has rows
   above it, 2px after a collapsed project, so a run of collapsed projects
-  reads as a list. A hairline between projects was tried and dropped: with
-  projects collapsed it striped every row (maintainer, 2026-10-28).
+  reads as a list. A hairline between every two projects was dropped: with
+  projects collapsed it striped every row (maintainer, 2026-10-28). It came
+  back only where an open project ends before the next one, in the middle of
+  that 12px gap, from the headers' content edge (maintainer, 2026-11-01): long
+  open projects ran together without it, and a run of collapsed ones keeps no
+  line.
 - Rows of zones that mix projects (Pinned, In work, the list by time) are
   `'mixed-compact'`: one line with no project icon (the room goes to the
   title; the whole-row tooltip names the project, branch and model), the PR
@@ -571,8 +586,10 @@ all / Expand all.
   worktrees nobody has started a session in. It is virtualized, so it has no
   reveal limit, and ends with the statuses a project header would show for
   projects it lists nothing for (one loading line, one line per failed
-  directory). Single-project mode keeps its project header and groups by
-  project.
+  directory). The list by time is every project's works, so it overrides
+  the project display: one-project mode applies only while grouped by project,
+  and the display menu hides Show projects meanwhile (maintainer, 2026-10-31;
+  before, one-project mode kept its project and the list by time did nothing).
 - An isolated space without chats still has its work row: it leads its
   project's list while it is made or runs, and closes it otherwise (see
   Spaces). Search leaves it out.
@@ -594,8 +611,9 @@ never counts. `list/SessionProjectCollection.tsx` orders the works by the first 
 their sessions in the shared lifecycle order (`orderInWorkWorks` in
 `works/sidebarWorks.ts`) and passes `workEntries` to the row model. In work
 spans registered projects. A session whose destination has no registered project
-stays out of In work, Pinned and search until `sync/session-admission.ts` checks
-its OpenCode configuration and registers its folder. Pins and work state cannot
+stays out of In work, Pinned and search until its folder is registered: by the
+user opening the session, or by `sync/session-admission.ts` after a move out of
+a registered project. Pins and work state cannot
 admit a destination, including in the tray. The raw global cache retains these
 sessions for cleanup and lineage. A work In work lists leaves its project
 or folder (`movedSessionIds`, `movedGroupKeys`) unless "Also show in work
@@ -984,7 +1002,7 @@ matching and ordering. Search does not fetch sessions or broaden list membership
   folder the pointer never reached. A row drags only when its owner has a
   folder that accepts drops (`SessionFolderOwnersProvider`): a drag with
   nowhere to land swallowed the click that started it when the mouse moved
-  8 px during the press.
+  4 px during the press.
   A cross-project child keeps its display parent, while its folder menu, drag
   payload, bulk-selection scope and Tracker links use the authoritative owner
   of the child's own directory. The drop action resolves the current row
@@ -1129,6 +1147,30 @@ and stops at its last child with a corner, so where a worktree's or a
 session's children end reads at a glance, and a long tree is not striped by
 lines that run through rows they do not belong to.
 
+### Why a dragged project or section folds the list, and not a drop line
+
+Rows drag the way a flat list of tabs does: the whole row lifts after 4 px of
+mouse travel or a 200 ms touch press, a press on a button or switch in the row
+works that control instead (`rowDrag.ts`, the row's own toggle carries
+`data-row-drag`), a copy of the row as it was drawn follows the pointer up and
+down only (`RowDragPreview`, `keepRowInList`), and a drop lands at once with no
+flight back. Projects and sections are blocks of rows in one virtual list,
+though, and a header sorted among its siblings left its rows behind, so the
+other headers slid over them. The maintainer chose (2026-10-31) to fold the
+list while a project or a section is held (`list/blockDrag.ts`): every project,
+and for a section every section too, shows its header only, so the headers
+slide past each other as single rows do, and the rows return on drop. A drop
+line over a still list was the alternative: steadier, but nothing makes room.
+The fold waits until the drag has measured where the header was picked up, or
+the copy would start from the folded place; the held header stays where it is
+on screen as the list folds, and where it was let go as the list opens
+(`heldRowRef`), or where it was when let go in its own place. While sections
+fold, Projects keeps its caption even with nothing above it, so a section can
+be dropped above it. A project in a group of projects sorts the group's own
+order, kept in the section, whatever the projects' sort; Projects sorts by
+hand only when sorted manually. Session rows only drop into folders: their copy
+follows the pointer, and nothing makes room.
+
 ### Why the list keeps the row the user sees and not the scroll position
 
 Rows above the viewport changed and the scroll position stayed, so whatever
@@ -1165,16 +1207,16 @@ project outvoted what it jumped over).
 
 What the user does to the list keeps its own behaviour: a header opening or
 closing (it has its motion), Show more or less (the new rows show where the
-control was), subsessions shown or hidden, a search, projects dragged into
-another order. Most are told apart by what the user sets on rows: open or
+control was), subsessions shown or hidden, a search, projects or sections
+dragged into another order. Most are told apart by what the user sets on rows: open or
 closed, the count Show more asked for (`requestedCount`; `currentCount`
 also moves as sessions arrive). A row that offers nothing to set is left
 out: a session gains or loses its chevron, and an empty group or folder is
 always open, as sessions come and go. A changed project order looks the same
 whether the user dragged it or projects sorted by recent activity moved on
-their own, so the drag says so itself: `SessionProjectScroller` marks it
-before the reorder and `takeProjectReorder` hands the mark over once, when
-the order changes. A project moving above the viewport on its own is
+their own, so the drag says so itself: `SessionProjectScroller` names the
+header it holds (`heldRowRef`), and the next change of the rows keeps that
+header where it is on screen instead, with no disclosure motion. A project moving above the viewport on its own is
 anchored like a session doing so. A hidden list (the phone's while projects
 are reordered) keeps nothing. The sidebar never scrolled to a session the
 user opened or created, and still does not; the phone's drawer brings its

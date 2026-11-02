@@ -94,7 +94,7 @@ export const OPENCHAMBER_WEB_ACTIONS = Object.freeze(
  */
 export const OPENCHAMBER_MEMORY_ACTION_DEFINITIONS = Object.freeze([
   { action: 'memory.read', title: 'Read a stored memory', description: 'Full text of one memory; requires title or memoryId' },
-  { action: 'memory.list', title: 'List stored memories', description: 'Titles, when the session index is missing or stale' },
+  { action: 'memory.list', title: 'List stored memories', description: 'Titles, when the session index is missing, stale or cut short' },
   { action: 'memory.save', title: 'Remember something', description: 'Requires title, body, scope. Saving the same thing updates it; memoryId rewrites that entry, to correct one or merge several into it' },
   { action: 'memory.delete', title: 'Forget a memory', description: 'For a memory that turned out wrong or obsolete; requires memoryId and scope' },
 ]);
@@ -175,8 +175,8 @@ export const OPENCHAMBER_SECRET_ACTIONS = Object.freeze(
 
 /**
  * Workflows are their own tool: fanning a large task out to many agents is a
- * distinct intent with its own scripting guidance, and it ships dark behind
- * OPENCHAMBER_WORKFLOWS_ENABLE, so it has to disappear completely.
+ * distinct intent with its own scripting guidance, and the tool is off until
+ * the user turns it on, so it has to disappear completely.
  */
 export const OPENCHAMBER_WORKFLOW_ACTION_DEFINITIONS = Object.freeze([
   { action: 'workflow.check', title: 'Check a workflow', description: 'Compile script, or a saved workflow by name, without running it: its name, description and phases' },

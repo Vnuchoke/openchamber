@@ -13,6 +13,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -23,8 +24,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -177,6 +180,7 @@ export const dict = {
   ...fileEditorAidsI18n.en,
   ...htmlRenderI18n.en,
   ...documentToolbarI18n.en,
+  ...uiBlocksI18n.en,
   ...updateDialogCanaryI18n.en,
   ...secretRequestI18n.en,
   ...sessionNoticesI18n.en,
@@ -187,8 +191,10 @@ export const dict = {
   ...heapSnapshotI18n.en,
   ...consoleBudgetsI18n.en,
   ...imageToolI18n.en,
+  ...agentStatusI18n.en,
   ...snippetsI18n.en,
   ...sidebarWorkI18n.en,
+  ...sidebarSectionsI18n.en,
   ...worktreeArchiveI18n.en,
   ...overviewI18n.en,
   ...isolatedSpacesI18n.en,
@@ -469,6 +475,7 @@ export const dict = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': 'Choose a project first',
   'sessions.scheduledTasks.dialog.toast.loadFailed': 'Failed to load scheduled tasks',
   'sessions.scheduledTasks.dialog.toast.saved': 'Scheduled task saved',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': 'The task now runs in its new place, but the old copy could not be deleted. Delete it there so the task doesn\'t run twice.',
   'sessions.scheduledTasks.dialog.toast.updateFailed': 'Failed to update task',
   'sessions.scheduledTasks.dialog.toast.deleted': 'Scheduled task deleted',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': 'Failed to delete task',
@@ -687,7 +694,6 @@ export const dict = {
   'header.sourceControl.avatarWithLogin': '{login} avatar',
   'header.sourceControl.avatar': '{provider} avatar',
   'header.sourceControl.accountsTitle': '{provider} Accounts',
-  'header.sessionTabs.tabMenuAria': 'Session tab actions',
   'header.sessionTabs.closeTab': 'Close tab',
   'header.sessionTabs.closeOtherTabs': 'Close other tabs',
   'sessions.switcher.empty': 'No recent sessions',
@@ -2262,7 +2268,7 @@ export const dict = {
   'helpDialog.item.togglePromptNavigator': 'Toggle Prompt Navigator',
   'helpDialog.item.abortActiveRun': 'Abort active run (double press)',
   'helpDialog.item.toggleTerminalDock': 'Toggle Terminal Dock',
-  'helpDialog.item.toggleTerminalExpanded': 'Toggle Terminal Expanded',
+  'helpDialog.item.toggleContextPanelExpanded': 'Expand or collapse panel',
   'helpDialog.item.switchSessionTab': 'Switch Session Tab',
   'helpDialog.item.switchContextSurface': 'Switch Context Panel Surface (number key)',
   'helpDialog.item.cycleTheme': 'Cycle Theme (Light → Dark → System)',
@@ -2357,6 +2363,7 @@ export const dict = {
   'session.githubIntegration.validation.failed': 'Validation failed',
   'chat.fileAttachment.toast.attachFailed': 'Failed to attach file',
   'chat.fileAttachment.toast.tooLarge': '{name} is too large to attach (over {size}). Mention it with @ if it is in the project.',
+  'chat.fileAttachment.toast.overSendLimit': '{name} is too large to attach (over {size}).',
   'chat.fileAttachment.toast.someFilesSkipped': 'Some files were skipped:\n{summary}',
   'chat.fileAttachment.toast.vscodePickFailed': 'Failed to pick files in VS Code',
   'chat.fileAttachment.fileFallback': 'file',
@@ -3013,7 +3020,6 @@ export const dict = {
   'projectEditDialog.toast.iconDiscovered': 'Project icon discovered',
   'openInApp.actions.open': 'Open',
   'openInApp.actions.openInAria': 'Open in {app}',
-  'openInApp.actions.chooseAppAria': 'Choose app to open',
   'openInApp.actions.copyPath': 'Copy Path',
   'openInApp.actions.refreshApps': 'Refresh Apps',
   'openInApp.toast.pathCopied': 'Path copied to clipboard',

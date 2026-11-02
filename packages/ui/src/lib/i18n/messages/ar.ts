@@ -13,6 +13,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -23,8 +24,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -419,6 +422,7 @@ export const dict = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': 'اختر مشروعًا أولًا',
   'sessions.scheduledTasks.dialog.toast.loadFailed': 'تعذّر تحميل المهام المجدولة',
   'sessions.scheduledTasks.dialog.toast.saved': 'تم حفظ المهمة المجدولة',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': 'تعمل المهمة الآن في مكانها الجديد، لكن تعذّر حذف النسخة القديمة. احذفها هناك حتى لا تعمل المهمة مرتين.',
   'sessions.scheduledTasks.dialog.toast.updateFailed': 'تعذّر تحديث المهمة',
   'sessions.scheduledTasks.dialog.toast.deleted': 'تم حذف المهمة المجدولة',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': 'تعذّر حذف المهمة',
@@ -637,7 +641,6 @@ export const dict = {
   'header.sourceControl.avatarWithLogin': 'الصورة الرمزية لـ {login}',
   'header.sourceControl.avatar': 'الصورة الرمزية في {provider}',
   'header.sourceControl.accountsTitle': 'حسابات {provider}',
-  'header.sessionTabs.tabMenuAria': 'إجراءات علامة تبويب الجلسة',
   'header.sessionTabs.closeTab': 'إغلاق علامة التبويب',
   'header.sessionTabs.closeOtherTabs': 'إغلاق علامات التبويب الأخرى',
   'sessions.switcher.empty': 'لا توجد جلسات حديثة',
@@ -2190,7 +2193,7 @@ export const dict = {
   'helpDialog.item.togglePromptNavigator': 'إظهار/إخفاء متصفح الطلبات',
   'helpDialog.item.abortActiveRun': 'إيقاف التشغيل النشط (ضغطة مزدوجة)',
   'helpDialog.item.toggleTerminalDock': 'إظهار/إخفاء حاوية الطرفية',
-  'helpDialog.item.toggleTerminalExpanded': 'توسيع/تصغير الطرفية',
+  'helpDialog.item.toggleContextPanelExpanded': 'توسيع اللوحة أو تصغيرها',
   'helpDialog.item.switchSessionTab': 'تبديل علامة تبويب الجلسة',
   'helpDialog.item.switchContextSurface': 'تبديل واجهة لوحة السياق (مفتاح رقمي)',
   'helpDialog.item.cycleTheme': 'التبديل بين السمات (فاتح ← داكن ← النظام)',
@@ -2285,6 +2288,7 @@ export const dict = {
   'session.githubIntegration.validation.failed': 'تعذّر التحقق',
   'chat.fileAttachment.toast.attachFailed': 'تعذّر إرفاق الملف',
   'chat.fileAttachment.toast.tooLarge': '{name} كبير جدًا بحيث لا يمكن إرفاقه (أكثر من {size}). إذا كان ضمن المشروع، فاذكره باستخدام @.',
+  'chat.fileAttachment.toast.overSendLimit': '{name} كبير جدًا بحيث لا يمكن إرفاقه (أكثر من {size}).',
   'chat.fileAttachment.toast.someFilesSkipped': "تم تخطي بعض الملفات:\n{summary}",
   'chat.fileAttachment.toast.vscodePickFailed': 'تعذّر اختيار الملفات في VS Code',
   'chat.fileAttachment.fileFallback': 'ملف',
@@ -2354,7 +2358,7 @@ export const dict = {
   'chat.statusRow.todo.priority.low': 'أولوية منخفضة',
   'chat.statusRow.actions.stopGeneratingAria': 'إيقاف التوليد',
   'chat.statusRow.tasksTitle': 'المهام',
-  'chat.statusRow.modelStatus': '{model}: {status}',
+  'chat.statusRow.modelStatus': '{model} {status}',
   'chat.statusRow.summary.activeLeft': '{active} نشطة · {left} متبقية',
   'chat.revertIndicator.redo': 'إعادة',
   'chat.revertIndicator.redoAria': 'إعادة — استعادة الرسائل التي تم التراجع عنها',
@@ -2941,7 +2945,6 @@ export const dict = {
   'projectEditDialog.toast.iconDiscovered': 'تم اكتشاف أيقونة المشروع',
   'openInApp.actions.open': 'فتح',
   'openInApp.actions.openInAria': 'فتح في {app}',
-  'openInApp.actions.chooseAppAria': 'اختيار التطبيق للفتح',
   'openInApp.actions.copyPath': 'نسخ المسار',
   'openInApp.actions.refreshApps': 'تحديث التطبيقات',
   'openInApp.toast.pathCopied': 'تم نسخ المسار إلى الحافظة',
@@ -3855,6 +3858,7 @@ export const dict = {
   ...fileEditorAidsI18n.ar,
   ...htmlRenderI18n.ar,
   ...documentToolbarI18n.ar,
+  ...uiBlocksI18n.ar,
   ...updateDialogCanaryI18n.ar,
   ...secretRequestI18n.ar,
   ...sessionNoticesI18n.ar,
@@ -3865,8 +3869,10 @@ export const dict = {
   ...heapSnapshotI18n.ar,
   ...consoleBudgetsI18n.ar,
   ...imageToolI18n.ar,
+  ...agentStatusI18n.ar,
   ...snippetsI18n.ar,
   ...sidebarWorkI18n.ar,
+  ...sidebarSectionsI18n.ar,
   ...worktreeArchiveI18n.ar,
   ...overviewI18n.ar,
   ...isolatedSpacesI18n.ar,

@@ -13,6 +13,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -23,8 +24,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -177,6 +180,7 @@ export const dict = {
   ...fileEditorAidsI18n.de,
   ...htmlRenderI18n.de,
   ...documentToolbarI18n.de,
+  ...uiBlocksI18n.de,
   ...updateDialogCanaryI18n.de,
   ...secretRequestI18n.de,
   ...sessionNoticesI18n.de,
@@ -187,8 +191,10 @@ export const dict = {
   ...heapSnapshotI18n.de,
   ...consoleBudgetsI18n.de,
   ...imageToolI18n.de,
+  ...agentStatusI18n.de,
   ...snippetsI18n.de,
   ...sidebarWorkI18n.de,
+  ...sidebarSectionsI18n.de,
   ...worktreeArchiveI18n.de,
   ...overviewI18n.de,
   ...isolatedSpacesI18n.de,
@@ -419,6 +425,7 @@ export const dict = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': 'Wählen Sie zuerst ein Projekt',
   'sessions.scheduledTasks.dialog.toast.loadFailed': 'Fehler beim Laden der geplanten Aufgaben',
   'sessions.scheduledTasks.dialog.toast.saved': 'Geplante Aufgabe gespeichert',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': 'Die Aufgabe läuft jetzt am neuen Ort, aber die alte Kopie konnte nicht gelöscht werden. Löschen Sie sie dort, damit die Aufgabe nicht doppelt läuft.',
   'sessions.scheduledTasks.dialog.toast.updateFailed': 'Fehler beim Aktualisieren der Aufgabe',
   'sessions.scheduledTasks.dialog.toast.deleted': 'Geplante Aufgabe gelöscht',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': 'Fehler beim Löschen der Aufgabe',
@@ -609,7 +616,6 @@ export const dict = {
   'header.sourceControl.avatarWithLogin': '{login} Avatar',
   'header.sourceControl.avatar': '{provider}-Avatar',
   'header.sourceControl.accountsTitle': '{provider}-Konten',
-  'header.sessionTabs.tabMenuAria': 'Aktionen für den Sitzungs-Tab',
   'header.sessionTabs.closeTab': 'Tab schließen',
   'header.sessionTabs.closeOtherTabs': 'Andere Tabs schließen',
   'sessions.switcher.empty': 'Keine kürzlichen Sitzungen',
@@ -1994,7 +2000,7 @@ export const dict = {
   'helpDialog.item.togglePromptNavigator': 'Aufforderungs-Navigator umschalten',
   'helpDialog.item.abortActiveRun': 'Aktuelle Ausführung abbrechen (Doppeltaste)',
   'helpDialog.item.toggleTerminalDock': 'Terminal-Dock umschalten',
-  'helpDialog.item.toggleTerminalExpanded': 'Terminal erweitert umschalten',
+  'helpDialog.item.toggleContextPanelExpanded': 'Panel aus- oder einklappen',
   'helpDialog.item.cycleTheme': 'Thema wechseln (Hell → Dunkel → System)',
   'helpDialog.item.switchSessionTab': 'Sitzungs-Tab wechseln',
   'helpDialog.item.switchContextSurface': 'Kontextpanel-Oberfläche wechseln (Zahlentaste)',
@@ -2089,6 +2095,7 @@ export const dict = {
   'session.githubIntegration.validation.failed': 'Validierung fehlgeschlagen',
   'chat.fileAttachment.toast.attachFailed': 'Fehler beim Anhängen der Datei',
   'chat.fileAttachment.toast.tooLarge': '{name} ist zu groß zum Anhängen (über {size}). Liegt die Datei im Projekt, erwähne sie mit @.',
+  'chat.fileAttachment.toast.overSendLimit': '{name} ist zu groß zum Anhängen (über {size}).',
   'chat.fileAttachment.toast.someFilesSkipped': 'Einige Dateien wurden übersprungen:\n{summary}',
   'chat.fileAttachment.toast.vscodePickFailed': 'Fehler beim Auswählen von Dateien in VS Code',
   'chat.fileAttachment.fileFallback': 'Datei',
@@ -2721,7 +2728,6 @@ export const dict = {
   'projectEditDialog.toast.iconDiscovered': 'Projekt-Symbol entdeckt',
   'openInApp.actions.open': 'Öffnen',
   'openInApp.actions.openInAria': 'In {app} öffnen',
-  'openInApp.actions.chooseAppAria': 'App zum Öffnen auswählen',
   'openInApp.actions.copyPath': 'Pfad kopieren',
   'openInApp.actions.refreshApps': 'Apps aktualisieren',
   'openInApp.toast.pathCopied': 'Pfad in die Zwischenablage kopiert',
@@ -3516,7 +3522,7 @@ export const dict = {
   'terminalView.quickKeys.altLabel': 'Alt',
   'terminalView.quickKeys.altModifierAria': 'Alt-Taste',
   'chat.draftPresets.scheduleTask.label': 'Aufgabe planen',
-  'chat.statusRow.modelStatus': '{model} ist {status}',
+  'chat.statusRow.modelStatus': '{model} {status}',
   'chat.commandAutocomplete.command.scheduleTaskDescription': 'Eine geplante Aufgabe erstellen',
   'chat.chatInput.toast.scheduleTaskFailed': 'Aufgabe konnte nicht geplant werden',
   'chat.container.sessionLoadError.title': 'Sitzung konnte nicht geladen werden',

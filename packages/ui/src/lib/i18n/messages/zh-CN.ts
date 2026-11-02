@@ -14,6 +14,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -24,8 +25,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -178,6 +181,7 @@ export const dict: Record<I18nKey, string> = {
   ...fileEditorAidsI18n['zh-CN'],
   ...htmlRenderI18n['zh-CN'],
   ...documentToolbarI18n['zh-CN'],
+  ...uiBlocksI18n['zh-CN'],
   ...updateDialogCanaryI18n['zh-CN'],
   ...secretRequestI18n['zh-CN'],
   ...sessionNoticesI18n['zh-CN'],
@@ -188,8 +192,10 @@ export const dict: Record<I18nKey, string> = {
   ...heapSnapshotI18n['zh-CN'],
   ...consoleBudgetsI18n['zh-CN'],
   ...imageToolI18n['zh-CN'],
+  ...agentStatusI18n['zh-CN'],
   ...snippetsI18n['zh-CN'],
   ...sidebarWorkI18n['zh-CN'],
+  ...sidebarSectionsI18n['zh-CN'],
   ...worktreeArchiveI18n['zh-CN'],
   ...overviewI18n['zh-CN'],
   ...isolatedSpacesI18n['zh-CN'],
@@ -470,6 +476,7 @@ export const dict: Record<I18nKey, string> = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': '请先选择一个项目',
   'sessions.scheduledTasks.dialog.toast.loadFailed': '加载计划任务失败',
   'sessions.scheduledTasks.dialog.toast.saved': '计划任务已保存',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': '任务现在会在新位置运行，但无法删除旧副本。请在原位置将其删除，以免任务运行两次。',
   'sessions.scheduledTasks.dialog.toast.updateFailed': '更新任务失败',
   'sessions.scheduledTasks.dialog.toast.deleted': '计划任务已删除',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': '删除任务失败',
@@ -688,7 +695,6 @@ export const dict: Record<I18nKey, string> = {
   'header.sourceControl.avatarWithLogin': '{login} 头像',
   'header.sourceControl.avatar': '{provider} 头像',
   'header.sourceControl.accountsTitle': '{provider} 账户',
-  'header.sessionTabs.tabMenuAria': '会话标签页操作',
   'header.sessionTabs.closeTab': '关闭标签页',
   'header.sessionTabs.closeOtherTabs': '关闭其他标签页',
   'sessions.switcher.empty': '没有最近会话',
@@ -2228,7 +2234,7 @@ export const dict: Record<I18nKey, string> = {
   'helpDialog.item.togglePromptNavigator': '显示或隐藏提示词导航',
   'helpDialog.item.abortActiveRun': '中止当前运行（双击）',
   'helpDialog.item.toggleTerminalDock': '切换终端停靠栏',
-  'helpDialog.item.toggleTerminalExpanded': '切换终端展开状态',
+  'helpDialog.item.toggleContextPanelExpanded': '展开或收起面板',
   'helpDialog.item.cycleTheme': '循环切换主题（浅色 → 深色 → 跟随系统）',
   'helpDialog.item.switchSessionTab': '切换会话标签页',
   'helpDialog.item.switchContextSurface': '切换上下文面板界面（数字键）',
@@ -2323,6 +2329,7 @@ export const dict: Record<I18nKey, string> = {
   'session.githubIntegration.validation.failed': '校验失败',
   'chat.fileAttachment.toast.attachFailed': '附加文件失败',
   'chat.fileAttachment.toast.tooLarge': '{name} 过大，无法附加（超过 {size}）。如果它在项目中，请用 @ 提及。',
+  'chat.fileAttachment.toast.overSendLimit': '{name} 过大，无法附加（超过 {size}）。',
   'chat.fileAttachment.toast.someFilesSkipped': '以下文件被跳过：\n{summary}',
   'chat.fileAttachment.toast.vscodePickFailed': '在 VS Code 中选择文件失败',
   'chat.fileAttachment.fileFallback': '文件',
@@ -2392,7 +2399,7 @@ export const dict: Record<I18nKey, string> = {
   'chat.statusRow.todo.priority.low': '低优先级',
   'chat.statusRow.actions.stopGeneratingAria': '停止生成',
   'chat.statusRow.tasksTitle': '任务',
-  'chat.statusRow.modelStatus': '{model} · {status}',
+  'chat.statusRow.modelStatus': '{model}{status}',
   'chat.statusRow.summary.activeLeft': '{active} 个活跃 · 剩余 {left} 个',
   'chat.revertIndicator.redo': '重做',
   'chat.revertIndicator.redoAria': '重做 — 恢复已撤回的消息',
@@ -2979,7 +2986,6 @@ export const dict: Record<I18nKey, string> = {
   'projectEditDialog.toast.iconDiscovered': '项目图标已发现',
   'openInApp.actions.open': '打开',
   'openInApp.actions.openInAria': '在 {app} 中打开',
-  'openInApp.actions.chooseAppAria': '选择要打开的应用',
   'openInApp.actions.copyPath': '复制路径',
   'openInApp.actions.refreshApps': '刷新应用',
   'openInApp.toast.pathCopied': '路径已复制到剪贴板',

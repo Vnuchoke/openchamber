@@ -14,6 +14,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -24,8 +25,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -188,6 +191,7 @@ export const dict: Record<I18nKey, string> = {
   ...fileEditorAidsI18n['pt-BR'],
   ...htmlRenderI18n['pt-BR'],
   ...documentToolbarI18n['pt-BR'],
+  ...uiBlocksI18n['pt-BR'],
   ...updateDialogCanaryI18n['pt-BR'],
   ...secretRequestI18n['pt-BR'],
   ...sessionNoticesI18n['pt-BR'],
@@ -198,8 +202,10 @@ export const dict: Record<I18nKey, string> = {
   ...heapSnapshotI18n['pt-BR'],
   ...consoleBudgetsI18n['pt-BR'],
   ...imageToolI18n['pt-BR'],
+  ...agentStatusI18n['pt-BR'],
   ...snippetsI18n['pt-BR'],
   ...sidebarWorkI18n['pt-BR'],
+  ...sidebarSectionsI18n['pt-BR'],
   ...worktreeArchiveI18n['pt-BR'],
   ...overviewI18n['pt-BR'],
   ...isolatedSpacesI18n['pt-BR'],
@@ -479,6 +485,7 @@ export const dict: Record<I18nKey, string> = {
   "sessions.scheduledTasks.dialog.error.chooseProjectFirst": "Escolha um projeto primeiro",
   "sessions.scheduledTasks.dialog.toast.loadFailed": "Não foi possível carregar tarefas agendadas",
   "sessions.scheduledTasks.dialog.toast.saved": "Tarefa agendada salva",
+  "sessions.scheduledTasks.dialog.toast.moveLeftOriginal": "A tarefa agora é executada no novo local, mas a cópia antiga não pôde ser excluída. Exclua-a lá para que a tarefa não seja executada duas vezes.",
   "sessions.scheduledTasks.dialog.toast.updateFailed": "Não foi possível atualizar a tarefa",
   "sessions.scheduledTasks.dialog.toast.deleted": "Tarefa agendada excluída",
   "sessions.scheduledTasks.dialog.toast.deleteFailed": "Não foi possível excluir a tarefa",
@@ -692,7 +699,6 @@ export const dict: Record<I18nKey, string> = {
   "sessions.archivePage.restoreSessionAria": "Restaurar {title}",
   "sessions.switcher.openAria": "Abrir seletor de sessões",
   "header.sessionTabs.stripAria": "Sessões abertas",
-  "header.sessionTabs.tabMenuAria": "Ações da aba de sessão",
   "header.sessionTabs.closeTab": "Fechar aba",
   "header.sessionTabs.closeOtherTabs": "Fechar outras abas",
   "sessions.switcher.empty": "Nenhuma sessão recente",
@@ -2231,7 +2237,7 @@ export const dict: Record<I18nKey, string> = {
   "helpDialog.item.togglePromptNavigator": "Mostrar ou ocultar navegador de prompts",
   "helpDialog.item.abortActiveRun": "Interromper execução ativa (duplo clique)",
   "helpDialog.item.toggleTerminalDock": "Mostrar ou ocultar dock de terminal",
-  "helpDialog.item.toggleTerminalExpanded": "Expandir ou recolher o terminal",
+  "helpDialog.item.toggleContextPanelExpanded": "Expandir ou recolher painel",
   "helpDialog.item.cycleTheme": "Alternar tema (Claro → Escuro → Sistema)",
   "helpDialog.item.switchSessionTab": "Alternar aba de sessão",
   "helpDialog.item.switchContextSurface": "Alternar superfície do painel de contexto (tecla numérica)",
@@ -2326,6 +2332,7 @@ export const dict: Record<I18nKey, string> = {
   "session.githubIntegration.validation.failed": "Não foi possível validar",
   "chat.fileAttachment.toast.attachFailed": "Não foi possível anexar o arquivo",
   "chat.fileAttachment.toast.tooLarge": "{name} é grande demais para anexar (mais de {size}). Se estiver no projeto, mencione-o com @.",
+  "chat.fileAttachment.toast.overSendLimit": "{name} é grande demais para anexar (mais de {size}).",
   "chat.fileAttachment.toast.someFilesSkipped": "Alguns arquivos foram omitidos:\n{summary}",
   "chat.fileAttachment.toast.vscodePickFailed": "Não foi possível selecionar arquivos em VS Code",
   "chat.fileAttachment.fileFallback": "arquivo",
@@ -2395,7 +2402,7 @@ export const dict: Record<I18nKey, string> = {
   "chat.statusRow.todo.priority.low": "Prioridade baixa",
   "chat.statusRow.actions.stopGeneratingAria": "Parar a geração",
   "chat.statusRow.tasksTitle": "Tarefas",
-  "chat.statusRow.modelStatus": "{model} · {status}",
+  "chat.statusRow.modelStatus": "{model} {status}",
   "chat.statusRow.summary.activeLeft": "{active} ativas · {left} restantes",
   "chat.revertIndicator.redo": "Refazer",
   "chat.revertIndicator.redoAria": "Refazer — restaurar mensagens revertidas",
@@ -2970,7 +2977,6 @@ export const dict: Record<I18nKey, string> = {
   "projectEditDialog.toast.iconDiscovered": "Ícone do projeto descoberto",
   "openInApp.actions.open": "Abrir",
   "openInApp.actions.openInAria": "Abrir em {app}",
-  "openInApp.actions.chooseAppAria": "Escolher aplicativo para abrir",
   "openInApp.actions.copyPath": "Copiar caminho",
   "openInApp.actions.refreshApps": "Atualizar aplicativos",
   "openInApp.toast.pathCopied": "Caminho copiado para a área de transferência",

@@ -14,6 +14,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -24,8 +25,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -178,6 +181,7 @@ export const dict: Record<I18nKey, string> = {
   ...fileEditorAidsI18n.ja,
   ...htmlRenderI18n.ja,
   ...documentToolbarI18n.ja,
+  ...uiBlocksI18n.ja,
   ...updateDialogCanaryI18n.ja,
   ...secretRequestI18n.ja,
   ...sessionNoticesI18n.ja,
@@ -188,8 +192,10 @@ export const dict: Record<I18nKey, string> = {
   ...heapSnapshotI18n.ja,
   ...consoleBudgetsI18n.ja,
   ...imageToolI18n.ja,
+  ...agentStatusI18n.ja,
   ...snippetsI18n.ja,
   ...sidebarWorkI18n.ja,
+  ...sidebarSectionsI18n.ja,
   ...worktreeArchiveI18n.ja,
   ...overviewI18n.ja,
   ...isolatedSpacesI18n.ja,
@@ -470,6 +476,7 @@ export const dict: Record<I18nKey, string> = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': '先にプロジェクトを選択してください',
   'sessions.scheduledTasks.dialog.toast.loadFailed': 'スケジュールタスクの読み込みに失敗しました',
   'sessions.scheduledTasks.dialog.toast.saved': 'スケジュールタスクを保存しました',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': 'タスクは新しい場所で実行されるようになりましたが、古いコピーを削除できませんでした。タスクが二重に実行されないよう、元の場所で削除してください。',
   'sessions.scheduledTasks.dialog.toast.updateFailed': 'タスクの更新に失敗しました',
   'sessions.scheduledTasks.dialog.toast.deleted': 'スケジュールタスクを削除しました',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': 'タスクの削除に失敗しました',
@@ -688,7 +695,6 @@ export const dict: Record<I18nKey, string> = {
   'header.sourceControl.avatarWithLogin': '{login}のアバター',
   'header.sourceControl.avatar': '{provider}アバター',
   'header.sourceControl.accountsTitle': '{provider}アカウント',
-  'header.sessionTabs.tabMenuAria': 'セッションタブの操作',
   'header.sessionTabs.closeTab': 'タブを閉じる',
   'header.sessionTabs.closeOtherTabs': '他のタブを閉じる',
   'sessions.switcher.empty': '最近のセッションはありません',
@@ -2258,7 +2264,7 @@ export const dict: Record<I18nKey, string> = {
   'helpDialog.item.togglePromptNavigator': 'プロンプトナビゲーターの表示切替',
   'helpDialog.item.abortActiveRun': 'アクティブな実行を中止（ダブルプレス）',
   'helpDialog.item.toggleTerminalDock': 'ターミナルドックの切り替え',
-  'helpDialog.item.toggleTerminalExpanded': 'ターミナル展開の切り替え',
+  'helpDialog.item.toggleContextPanelExpanded': 'パネルの展開を切り替え',
   'helpDialog.item.cycleTheme': 'テーマ切り替え（ライト→ダーク→システム）',
   'helpDialog.item.switchSessionTab': 'セッションタブを切り替え',
   'helpDialog.item.switchContextSurface': 'コンテキストパネルのサーフェスを切り替え（数字キー）',
@@ -2353,6 +2359,7 @@ export const dict: Record<I18nKey, string> = {
   'session.githubIntegration.validation.failed': '検証に失敗しました',
   'chat.fileAttachment.toast.attachFailed': 'ファイルの添付に失敗しました',
   'chat.fileAttachment.toast.tooLarge': '{name} は大きすぎるため添付できません（{size} 超）。プロジェクト内のファイルなら @ でメンションしてください。',
+  'chat.fileAttachment.toast.overSendLimit': '{name} は大きすぎるため添付できません（{size} 超）。',
   'chat.fileAttachment.toast.someFilesSkipped': '一部のファイルがスキップされました:\n{summary}',
   'chat.fileAttachment.toast.vscodePickFailed': 'VS Codeでのファイル選択に失敗しました',
   'chat.fileAttachment.fileFallback': 'ファイル',
@@ -2422,7 +2429,7 @@ export const dict: Record<I18nKey, string> = {
   'chat.statusRow.todo.priority.low': '低優先度',
   'chat.statusRow.actions.stopGeneratingAria': '生成を停止',
   'chat.statusRow.tasksTitle': 'タスク',
-  'chat.statusRow.modelStatus': '{model} · {status}',
+  'chat.statusRow.modelStatus': '{model}: {status}',
   'chat.statusRow.summary.activeLeft': '{active}アクティブ · {left}残り',
   'chat.revertIndicator.redo': 'やり直し',
   'chat.revertIndicator.redoAria': 'やり直し — 元に戻したメッセージを復元',
@@ -3012,7 +3019,6 @@ export const dict: Record<I18nKey, string> = {
   'projectEditDialog.toast.iconDiscovered': 'プロジェクトアイコンを検出しました',
   'openInApp.actions.open': '開く',
   'openInApp.actions.openInAria': '{app}で開く',
-  'openInApp.actions.chooseAppAria': '開くアプリを選択',
   'openInApp.actions.copyPath': 'パスをコピー',
   'openInApp.actions.refreshApps': 'アプリを更新',
   'openInApp.toast.pathCopied': 'パスをクリップボードにコピーしました',

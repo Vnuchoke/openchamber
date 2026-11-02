@@ -13,6 +13,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -23,8 +24,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -177,6 +180,7 @@ export const dict = {
   ...fileEditorAidsI18n.nl,
   ...htmlRenderI18n.nl,
   ...documentToolbarI18n.nl,
+  ...uiBlocksI18n.nl,
   ...updateDialogCanaryI18n.nl,
   ...secretRequestI18n.nl,
   ...sessionNoticesI18n.nl,
@@ -187,8 +191,10 @@ export const dict = {
   ...heapSnapshotI18n.nl,
   ...consoleBudgetsI18n.nl,
   ...imageToolI18n.nl,
+  ...agentStatusI18n.nl,
   ...snippetsI18n.nl,
   ...sidebarWorkI18n.nl,
+  ...sidebarSectionsI18n.nl,
   ...worktreeArchiveI18n.nl,
   ...overviewI18n.nl,
   ...isolatedSpacesI18n.nl,
@@ -469,6 +475,7 @@ export const dict = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': 'Kies eerst een project',
   'sessions.scheduledTasks.dialog.toast.loadFailed': 'Kan geplande taken niet laden',
   'sessions.scheduledTasks.dialog.toast.saved': 'Geplande taak opgeslagen',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': 'De taak draait nu op de nieuwe plek, maar de oude kopie kon niet worden verwijderd. Verwijder die daar, zodat de taak niet twee keer draait.',
   'sessions.scheduledTasks.dialog.toast.updateFailed': 'Kan taak niet bijwerken',
   'sessions.scheduledTasks.dialog.toast.deleted': 'Geplande taak verwijderd',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': 'Kan taak niet verwijderen',
@@ -682,7 +689,6 @@ export const dict = {
   'sessions.archivePage.restoreSessionAria': '{title} herstellen',
   'sessions.switcher.openAria': 'Sessiewisselaar openen',
   'header.sessionTabs.stripAria': 'Sessies openen',
-  'header.sessionTabs.tabMenuAria': 'Acties voor sessietab',
   'header.sessionTabs.closeTab': 'Tabblad sluiten',
   'header.sessionTabs.closeOtherTabs': 'Andere tabbladen sluiten',
   'sessions.switcher.empty': 'Geen recente sessies',
@@ -2262,7 +2268,7 @@ export const dict = {
   'helpDialog.item.togglePromptNavigator': 'Promptnavigator in-/uitschakelen',
   'helpDialog.item.abortActiveRun': 'Actieve uitvoering afbreken (dubbel indrukken)',
   'helpDialog.item.toggleTerminalDock': 'Terminaldock in-/uitschakelen',
-  'helpDialog.item.toggleTerminalExpanded': 'Uitgeklapte terminal in-/uitschakelen',
+  'helpDialog.item.toggleContextPanelExpanded': 'Paneel uit- of inklappen',
   'helpDialog.item.switchSessionTab': 'Sessietabblad wisselen',
   'helpDialog.item.switchContextSurface': 'Contextpaneel wisselen (cijfertoets)',
   'helpDialog.item.cycleTheme': 'Thema doorlopen (Licht → Donker → Systeem)',
@@ -2357,6 +2363,7 @@ export const dict = {
   'session.githubIntegration.validation.failed': 'Kan niet valideren',
   'chat.fileAttachment.toast.attachFailed': 'Kan het bestand niet toevoegen',
   'chat.fileAttachment.toast.tooLarge': '{name} is te groot om bij te voegen (meer dan {size}). Staat het bestand in het project, noem het dan met @.',
+  'chat.fileAttachment.toast.overSendLimit': '{name} is te groot om bij te voegen (meer dan {size}).',
   'chat.fileAttachment.toast.someFilesSkipped': 'Sommige bestanden zijn overgeslagen:\n{summary}',
   'chat.fileAttachment.toast.vscodePickFailed': 'Kan geen bestanden kiezen in VS Code',
   'chat.fileAttachment.fileFallback': 'bestand',
@@ -2426,7 +2433,7 @@ export const dict = {
   'chat.statusRow.todo.priority.low': 'Lage prioriteit',
   'chat.statusRow.actions.stopGeneratingAria': 'Genereren stoppen',
   'chat.statusRow.tasksTitle': 'Taken',
-  'chat.statusRow.modelStatus': '{model} is {status}',
+  'chat.statusRow.modelStatus': '{model} {status}',
   'chat.statusRow.summary.activeLeft': '{active} actief · {left} over',
   'chat.revertIndicator.redo': 'Opnieuw',
   'chat.revertIndicator.redoAria': 'Opnieuw — teruggedraaide berichten herstellen',
@@ -3013,7 +3020,6 @@ export const dict = {
   'projectEditDialog.toast.iconDiscovered': 'Projecticoon gevonden',
   'openInApp.actions.open': 'Openen',
   'openInApp.actions.openInAria': 'Openen in {app}',
-  'openInApp.actions.chooseAppAria': 'Kies de app om te openen',
   'openInApp.actions.copyPath': 'Pad kopiëren',
   'openInApp.actions.refreshApps': 'Apps vernieuwen',
   'openInApp.toast.pathCopied': 'Pad naar het klembord gekopieerd',

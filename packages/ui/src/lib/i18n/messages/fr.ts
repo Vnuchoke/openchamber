@@ -13,6 +13,7 @@ import { fileContentSearchI18n } from './file-content-search.i18n';
 import { fileEditorAidsI18n } from './file-editor-aids.i18n';
 import { htmlRenderI18n } from './html-render.i18n';
 import { documentToolbarI18n } from './document-toolbar.i18n';
+import { uiBlocksI18n } from './ui-blocks.i18n';
 import { updateDialogCanaryI18n } from './update-dialog-canary.i18n';
 import { secretRequestI18n } from './secret-request.i18n';
 import { sessionNoticesI18n } from './session-notices.i18n';
@@ -23,8 +24,10 @@ import { compactionSettingsI18n } from './compaction-settings.i18n';
 import { heapSnapshotI18n } from './heap-snapshot.i18n';
 import { consoleBudgetsI18n } from './console-budgets.i18n';
 import { imageToolI18n } from './image-tool.i18n';
+import { agentStatusI18n } from './agent-status.i18n';
 import { snippetsI18n } from './snippets.i18n';
 import { sidebarWorkI18n } from './sidebar-work.i18n';
+import { sidebarSectionsI18n } from './sidebar-sections.i18n';
 import { worktreeArchiveI18n } from './worktree-archive.i18n';
 import { overviewI18n } from './overview.i18n';
 import { isolatedSpacesI18n } from './isolated-spaces.i18n';
@@ -177,6 +180,7 @@ export const dict = {
   ...fileEditorAidsI18n.fr,
   ...htmlRenderI18n.fr,
   ...documentToolbarI18n.fr,
+  ...uiBlocksI18n.fr,
   ...updateDialogCanaryI18n.fr,
   ...secretRequestI18n.fr,
   ...sessionNoticesI18n.fr,
@@ -187,8 +191,10 @@ export const dict = {
   ...heapSnapshotI18n.fr,
   ...consoleBudgetsI18n.fr,
   ...imageToolI18n.fr,
+  ...agentStatusI18n.fr,
   ...snippetsI18n.fr,
   ...sidebarWorkI18n.fr,
+  ...sidebarSectionsI18n.fr,
   ...worktreeArchiveI18n.fr,
   ...overviewI18n.fr,
   ...isolatedSpacesI18n.fr,
@@ -305,6 +311,7 @@ export const dict = {
   'sessions.scheduledTasks.dialog.error.chooseProjectFirst': 'Choisissez d\'abord un projet',
   'sessions.scheduledTasks.dialog.toast.loadFailed': 'Échec du chargement des tâches planifiées',
   'sessions.scheduledTasks.dialog.toast.saved': 'Tâche planifiée enregistrée',
+  'sessions.scheduledTasks.dialog.toast.moveLeftOriginal': 'La tâche s’exécute désormais à son nouvel emplacement, mais l’ancienne copie n’a pas pu être supprimée. Supprimez-la là-bas pour que la tâche ne s’exécute pas deux fois.',
   'sessions.scheduledTasks.dialog.toast.updateFailed': 'Échec de la mise à jour de la tâche',
   'sessions.scheduledTasks.dialog.toast.deleted': 'Tâche planifiée supprimée',
   'sessions.scheduledTasks.dialog.toast.deleteFailed': 'Échec de la suppression de la tâche',
@@ -522,7 +529,6 @@ export const dict = {
   'header.sourceControl.avatarWithLogin': 'Avatar {login}',
   'header.sourceControl.avatar': 'Avatar {provider}',
   'header.sourceControl.accountsTitle': 'Comptes {provider}',
-  'header.sessionTabs.tabMenuAria': 'Actions de l\'onglet de session',
   'header.sessionTabs.closeTab': 'Fermer l\'onglet',
   'header.sessionTabs.closeOtherTabs': 'Fermer les autres onglets',
   'sessions.switcher.empty': 'Aucune session récente',
@@ -2011,7 +2017,7 @@ export const dict = {
   'helpDialog.item.togglePromptNavigator': 'Afficher ou masquer le navigateur de prompts',
   'helpDialog.item.abortActiveRun': 'Abandonner l’exécution active (double pression)',
   'helpDialog.item.toggleTerminalDock': 'Afficher/masquer le panneau du terminal',
-  'helpDialog.item.toggleTerminalExpanded': 'Agrandir/réduire le terminal',
+  'helpDialog.item.toggleContextPanelExpanded': 'Agrandir ou réduire le panneau',
   'helpDialog.item.cycleTheme': 'Basculer le thème (clair → sombre → système)',
   'helpDialog.item.switchSessionTab': 'Basculer l’onglet de session',
   'helpDialog.item.switchContextSurface': 'Basculer la surface du panneau contextuel (touche numérique)',
@@ -2106,6 +2112,7 @@ export const dict = {
   'session.githubIntegration.validation.failed': 'Échec de la validation',
   'chat.fileAttachment.toast.attachFailed': 'Impossible de joindre le fichier',
   'chat.fileAttachment.toast.tooLarge': '{name} est trop volumineux pour être joint (plus de {size}). S\'il fait partie du projet, mentionnez-le avec @.',
+  'chat.fileAttachment.toast.overSendLimit': '{name} est trop volumineux pour être joint (plus de {size}).',
   'chat.fileAttachment.toast.someFilesSkipped': 'Certains fichiers ont été ignorés :\n{summary}',
   'chat.fileAttachment.toast.vscodePickFailed': 'Échec de la sélection des fichiers dans VS Code',
   'chat.fileAttachment.fileFallback': 'fichier',
@@ -2156,7 +2163,7 @@ export const dict = {
   'chat.statusRow.todo.priority.low': 'Faible priorité',
   'chat.statusRow.actions.stopGeneratingAria': 'Arrêter de générer',
   'chat.statusRow.tasksTitle': 'Tâches',
-  'chat.statusRow.modelStatus': '{model} · {status}',
+  'chat.statusRow.modelStatus': '{model} {status}',
   'chat.statusRow.summary.activeLeft': '{active} actif · {left} restant',
   'chat.revertIndicator.redo': 'Refaire',
   'chat.revertIndicator.redoAria': 'Rétablir : restaurer les messages annulés',
@@ -2702,7 +2709,6 @@ export const dict = {
   'projectEditDialog.toast.iconDiscovered': 'Icône de projet découverte',
   'openInApp.actions.open': 'Ouvrir',
   'openInApp.actions.openInAria': 'Ouvert dans {app}',
-  'openInApp.actions.chooseAppAria': 'Choisissez l\'application à ouvrir',
   'openInApp.actions.copyPath': 'Copier le chemin',
   'openInApp.actions.refreshApps': 'Actualiser les applications',
   'openInApp.toast.pathCopied': 'Chemin copié dans le presse-papiers',

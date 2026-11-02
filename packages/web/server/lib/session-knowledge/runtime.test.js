@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { DIRECT_TOOLS_GUIDANCE, KNOWLEDGE_ENTRY_KEYS, RENDER_PAGE_GUIDANCE, SECRET_REQUEST_GUIDANCE, SESSION_LINK_GUIDANCE, WORK_NAME_GUIDANCE, WORKFLOW_GUIDANCE, buildKnowledgeEntries, createSessionKnowledgeRuntime } from './runtime.js';
+import { UI_BLOCKS_GUIDANCE } from './ui-blocks-guidance.js';
 
 const DIRECTORY = '/work/project';
 const PROJECT_ID = 'path_project';
@@ -229,8 +230,9 @@ describe('when to draw a page', () => {
   test('is told in a session whose agent has the render tool', async () => {
     const entries = await entriesFor(createRuntime({ ...bare, isPageRenderingAvailable: async () => true }), NO_PINS);
 
-    expect(entries[GUIDANCE]).toBe(`${RENDER_PAGE_GUIDANCE}\n\n${DIRECT_TOOLS_GUIDANCE}`);
-    expect(entries[GUIDANCE]).toContain('Skip it for a few numbers');
+    expect(entries[GUIDANCE]).toBe(`${UI_BLOCKS_GUIDANCE}\n\n${RENDER_PAGE_GUIDANCE}\n\n${DIRECT_TOOLS_GUIDANCE}`);
+    expect(entries[GUIDANCE]).toContain('Not for a few numbers');
+    expect(entries[GUIDANCE]).toContain('root = Stack([...])');
   });
 
   test('is left out without the tool, or when the check fails', async () => {
@@ -566,6 +568,21 @@ describe('size', () => {
 
     expect(entries[PINNED].length).toBeLessThan(8_100);
     expect(entries[PINNED]).toContain('(truncated)');
+  });
+
+  test('a memory index over budget keeps the newest whole titles and counts the rest', () => {
+    const entry = (index) => ({ title: `Project decision number ${index} about something`, type: 'fact', createdAt: index, updatedAt: index });
+    const project = Array.from({ length: 300 }, (_, index) => entry(index));
+    const memory = buildKnowledgeEntries({
+      notes: [], plans: [], memory: { global: [], project, enabled: true, complete: true },
+    })[MEMORY];
+
+    expect(memory.length).toBeLessThanOrEqual(8_000);
+    expect(memory).not.toContain('(truncated)');
+    expect(memory).toContain('- Project decision number 299 about something');
+    expect(memory).not.toContain('- Project decision number 0 about something');
+    const shown = memory.split('\n').filter((line) => line.startsWith('- Project decision')).length;
+    expect(memory).toContain(`${300 - shown} older titles did not fit here; memory.list gives every title.`);
   });
 });
 

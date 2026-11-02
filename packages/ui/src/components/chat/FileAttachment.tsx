@@ -14,6 +14,7 @@ import { decodeDataUrlText, getIssueLinkKind, getRepositoryIssueLinkProvider, ge
 import { ProviderIcon } from '@/components/sourceControl/ProviderIcon';
 import { useSourceControlProvider } from '@/lib/source-control/providers/registry';
 import { useOpenAttachment } from './message/useOpenAttachment';
+import { INLINE_SERVER_ATTACHMENT_ID_PREFIX } from './composer/attachments/inlineMentionAttachments';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { StatusImage } from '@/components/ui/status-image';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
@@ -22,6 +23,7 @@ import { Icon } from "@/components/icon/Icon";
 import { useI18n } from '@/lib/i18n';
 
 import type { ToolPopupContent } from './message/types';
+import { ScrollableOverlay } from '@/components/ui/ScrollableOverlay';
 
 const FileAttachmentButton = memo(() => {
   const { t } = useI18n();
@@ -401,12 +403,17 @@ export const AttachedFilesList = memo(({ onShowPopup, className, draftIdentity }
   const attachedFiles = useDraftAttachedFiles(draftIdentity);
   const removeAttachedFile = useInputStore((state) => state.removeAttachedFile);
 
-  const localFiles = attachedFiles.filter((file) => file.source !== 'server' && file.source !== 'vscode');
+  // A file attached by path (`source: 'server'`, a desktop file over the
+  // inline limit) gets a chip too: it leaves with every send, so the user
+  // has to see it and be able to remove it. An @-mention a failed send put
+  // back is shown by its mention in the text, which decides whether it goes.
+  const files = attachedFiles.filter((file) => file.source !== 'vscode'
+    && !file.id.startsWith(INLINE_SERVER_ATTACHMENT_ID_PREFIX));
 
-  if (localFiles.length === 0) return null;
+  if (files.length === 0) return null;
 
-  const images = localFiles.filter((f) => f.mimeType.startsWith('image/'));
-  const otherFiles = localFiles.filter((f) => !f.mimeType.startsWith('image/'));
+  const images = files.filter((f) => f.mimeType.startsWith('image/'));
+  const otherFiles = files.filter((f) => !f.mimeType.startsWith('image/'));
   const imageGallery = images.map((file) => ({
     url: file.dataUrl || file.serverPath || '',
     mimeType: file.mimeType,
@@ -487,7 +494,12 @@ export const ActiveEditorFileSuggestion = memo(() => {
   const displayName = fileName;
 
   const handleAddFile = () => {
-    addVSCodeFileAttachment(filePath, fileName, fileSize);
+    try {
+      addVSCodeFileAttachment(filePath, fileName, fileSize);
+    } catch (error) {
+      // The store names the cause (a file too large to send).
+      if (error instanceof Error) toast.error(error.message);
+    }
   };
 
   const handlePinSelection = async () => {
@@ -702,7 +714,7 @@ export const MessageFilesDisplay = memo(({ files, onShowPopup, compact = false, 
         )}
 
         {imageFiles.length > 0 && (
-          <div className="overflow-x-auto -mx-1 px-1 py-0.5 scrollbar-thin">
+          <ScrollableOverlay outerClassName="overlay-scrollbar-wrapper--no-gutter -mx-1 w-auto" className="px-1 py-0.5" fillContainer={false}>
             <div className="flex snap-x snap-mandatory gap-2">
               {imageFiles.map((file, index) => {
                 const filename = resolveDisplayName(file) || 'Image';
@@ -743,7 +755,7 @@ export const MessageFilesDisplay = memo(({ files, onShowPopup, compact = false, 
                 );
               })}
             </div>
-          </div>
+          </ScrollableOverlay>
         )}
       </div>
     );
