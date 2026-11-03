@@ -168,6 +168,10 @@ The composer compares normalized attachment MIME types with the selected model's
 
 Attachment drafts stay in memory for the page's lifetime, including composer remounts, independently of text persistence. `selectAttachmentDraft` saves the outgoing list and restores the rendered composer's runtime, directory, and session before paint. Switching cancels unfinished attachment reads. Send and queue recovery pass their captured draft identity so a late failure restores files to the source rather than the currently open session. Clearing or deleting a draft releases only its files. Opening a new-session draft leaves the outgoing session's files available for a return visit. With a chat pinned in the side panel two composers are on screen; each shows its own draft's files (`useDraftAttachedFiles`) and the selected slot follows the composer the user works in (composer documentation, *Pinned composer*).
 
+### Why sends read the server's agent
+
+`resolveSendSelection` reads the session through the runtime-aware SDK before comparing a requested agent. A directory sync record can miss an agent switch and already match the picker while the server still runs another agent. The server read makes that send recover and skips switch records when the server already matches. Failed reads are definite pre-send failures and roll back without prompt-confirmation reads; a runtime instance change discards the response, including a switch away and back. Model and effort comparisons use the current sync record after the read, so events received during it remain visible. Sends without an agent make no extra read.
+
 ## Catalog changes apply live
 
 Worktree drafts keep their checkout root as target identity and expose a separate
@@ -439,17 +443,47 @@ within the same project preserves manual choices. Activation continuations
 check the runtime, draft identity, target revision, and manual-selection state
 before applying defaults again.
 
+The runtime/session-keyed `sessionPickedModels` map in `selection-store.ts`
+tracks explicit model picks until a matching successful send, accepted queue
+item, or manual compaction carries them. Each operation captures settlement
+before waiting, including review-flow sends. Success settles the captured
+runtime/session pick even after a runtime switch; a newer pick, including a
+repeat of the same model, survives the older operation. Failure retains the pick.
+History restores never create that intent. This map is
+memory-only; session deletion clears it, and runtime keys isolate server picks.
+Agent selection uses it before old per-agent choices or pinned models.
+
 `selection-store.ts` persists runtime/session-keyed effort overrides alongside model and
 agent choices. Both a named effort and explicit `Default` survive reload, with
 the same 150-session persistence bound as the existing selections. Old payloads
 without effort entries remain valid; malformed effort entries grant no authority.
 Session deletion clears these entries. A saved effort choice precedes older
-message history so a reload cannot undo an unsent picker change, unless the
-session record has since switched to another model and effort. The store also
+message history so a reload cannot undo a saved picker change. While a live model
+pick is pending, it and its effort win over external switches. Otherwise the
+session record can switch to another model and effort. The store also
 persists, per session, the session-record agent and model the composer last
-followed; a different record value is a newer switch and replaces the pick
+followed; a different record value is a newer switch and replaces the saved selection
 (Auto excepted), while an unchanged one keeps an unsent pick
 (`packages/ui/src/stores/DOCUMENTATION.md`).
+
+Extension prompts sent into an existing session use its current composer selection
+when it is active, including an unsent agent pick. For another target they use
+its saved selection and follow newer switches on the loaded session record,
+then fall back to loaded message history and app send defaults. The same memory-only
+pending model tracker used by the composer gives an unsent pick priority over
+external record switches and per-agent models, with its saved effort. Successful
+extension sends settle that pick through the shared `sendMessage` settlement;
+failed sends retain it. Once consumed, later external switches apply again.
+Background captures reconcile the observed record through `selection-store.ts`.
+Successful sends also advance its followed model and agent baseline to the sent
+selection when its memory-only per-session follow revision has not advanced
+since the send left. Agent and model revisions advance independently on changed
+followed values, so even an external switch away and back supersedes a pending
+send. This still detects a later switch back to the original
+value without reopening the chat. Failed sends leave that sent baseline unchanged.
+Picker changes make no session API writes. Explicit Default
+effort remains `null` when sent so the saved choice is not erased. An extension
+starting a new session still captures the app defaults before creating it.
 
 A picker change records the chosen level for that model in the profile
 (`lastUsedEfforts`, `lib/modelEfforts.ts`) immediately, including an explicit
@@ -748,6 +782,8 @@ The host owns waiting pages directly, so its complete `pending` map is authorita
 A `permission.asked` in a session whose permission mode answers without the user (`auto`, or `safety` while a classification provider can run) is held back in `handleEvent`: no card, no row badge, no toast, and no entry in the cross-directory blocking-request index (which feeds collapsed rows, the tray and run overviews), so a request the server accepts never flashes on screen. The replay for the user applies global effects, which adds it to the index then. The host seed is not filtered this way: a page loaded while the server is still classifying a request can show it until the server answers. The server reports a request it did not answer (the safety net held it, Jev failed, or the reply failed) as `openchamber.permission-left-for-user`; the held-back event is then replayed as an `ask` request, stored and announced, in a directory with or without a store. `permission.replied` drops a held-back request. A report that arrives before its request is remembered (bounded), and that request is shown at once. VS Code never holds back: its extension host answers in the webview. A request held back while the client disconnects reaches the store through reconnect reconciliation, which does not consult the mode.
 
 Holding back is only safe while the client hears both the modes and the reports. The main event stream carries them only over the WebSocket; over SSE it is OpenCode's own stream. So the server also sends `openchamber:permission-auto-accept.updated` and `.left-for-user` on the control stream, which every web, desktop and mobile window keeps open, and `subscribePermissionPolicySync` (`permission-mode-sync.ts`) feeds them into `handleEvent`. Over the WebSocket each arrives twice; a second policy of the same revision and a second report for a request already shown change nothing. Each connection of the control stream reads the modes again, the host's (`usePermissionStore.hydrate`) and each known space's (`refreshSpaceModes`): a mode changed in another window while this one was cut off was never announced to it, and a stale `auto` would hide every request of that session for the life of the window. The host's `openchamber:space-permission-stream` announcement re-reads that space's modes from the control stream too.
+
+The other announcements the server sends the same way take the control stream too (`subscribeControlStreamSync` in `control-stream-sync.ts`): a page waiting for an answer (`openchamber:page-waiting`, `page-settled`), a pending recap (`session-assist`), a workflow run (`workflow-run`, `-removed`) and an archive (`session-archived`). The first three kinds have the control stream as their only reader, and `handleEvent` drops the WebSocket copy: each switches something on and off or replaces a run summary without a revision, so two copies interleaved between the streams could put an older state over a newer one, and a waiting page raises a toast. An archive arrives as a `session.patched` the pipeline cannot tell apart, so it is applied from both streams; the same patch twice changes nothing. Each connection of the control stream reads the shown runs again (`reloadLoaded`) and the host's snapshot (`seedGlobalSessionStatusFromHost`), which settles a page whose end fell into the gap. `openchamber:session-metadata` is left to the WebSocket: the server writes metadata into OpenCode, whose own `session.metadata.updated` reaches every transport.
 
 In-app permission and form toasts for a directory without a store are shown from `handleEvent` directly, except in VS Code, whose extension host owns the auto-accept path. VS Code's `/api/sessions/status` shim reports no pending requests.
 
@@ -1322,7 +1358,7 @@ Keep this in sync with `handleDirectoryEvent` in `sync-context.tsx`:
 | `permission.asked/replied` | `permission` |
 | `form.created/settled` | `form` |
 | `openchamber.notification`, `openchamber.permission-auto-accept`, `openchamber.permission-left-for-user` | (none — side effects only) |
-| `openchamber.workflow-run` | (none — applied to `useWorkflowRunsStore` in `lib/workflows/store.ts`) |
+| `openchamber.page-waiting/settled`, `openchamber.session-assist`, `openchamber.workflow-run`, `openchamber.workflow-run-removed` | (none: dropped here; `applyControlStreamOnlyEvent` applies the control stream's copy) |
 
 These are `SyncEvent`s from `packages/ui/src/lib/opencode/events.ts`, not OpenCode wire events: the event pipeline translates every OpenCode 2.x wire event (`session.text.delta`, `session.tool.called`, `session.step.ended`, ...) into this vocabulary before coalescing. Wire-level knowledge lives only in that translator; the reducer applies patches and tool-state transitions against the store.
 
@@ -1426,11 +1462,13 @@ React then throttles later-resolving boundaries by ~300ms, which staggered
 user and assistant text on a cold open.
 
 An opened session is shown already in place: at its end, or where the reader
-left it. When a list detaches (session switch, chat unmount) and its reader is
-away from the live end, `useChatTimelineScroll` records the topmost visible
+left it. Before KeepAlive hides a list on a session switch, and again on list
+detach for ordinary unmounts, `useChatTimelineScroll` records the topmost visible
 message and its offset (`lib/scroll/messageViewportAnchor.ts`) in an in-memory,
 100-session memory keyed by runtime, directory and session
 (`lib/scroll/sessionScrollMemory.ts`); a reader on the end clears the record.
+Unavailable measurements preserve an existing record. The before-hide snapshot
+also captures a first visit while the outgoing transcript is still measurable.
 Nothing is persisted across reloads. Re-entering the session aligns that
 message frame by frame until it holds still, with follow off and the
 scroll-to-bottom pill shown; any wheel, touch, pointer or key input ends the

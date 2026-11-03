@@ -66,6 +66,8 @@ A Callout is a tinted banner only for a warning or an error, with its title in t
 
 A form an agent waits on (`openchamber_render` with `ui` and `awaitAnswer`) shows "Add a note" whether or not the agent asked for one. Users pick an option that is close but not exact and need to add conditions to it ("the minimal fix, with a regression test"); the question tool only takes an option or free text instead of it. Agents do not reliably add such a field themselves, so the form does. The note sits before the form's last run of buttons (`noteSlot`), so it is written before one of them is pressed, and reaches the agent as `data.note` and as the last line of the summary.
 
+For the same reason a waiting form with no Button gets a "Send" button after the note. Only a press answers a page, and an agent that wrote two Choices and no Button left the user with a form that could not be sent while the agent waited on it.
+
 In a reply each decision card takes its own note. Its toggle is an icon at the end of the card's buttons, so a card is no taller until the user wants a note; the note opens above the buttons, and "Answer with the note only" takes the icon's place at once, disabled until the note has text, so the row does not shift while typing. A note alone answers the card: the user can say "not like this, ask the author first" without picking an option that does not fit.
 
 ### Why a titled card is one decision whatever its buttons' values say
@@ -75,6 +77,10 @@ The guidance asks for one `value` per item, but in the triage benchmark four of 
 ### Why an answered card folds
 
 A triage of five cards was a wall of buttons in which the undecided cards were hard to find. A card folds once answered, so what is left to decide stays open and what is decided reads as one line: the title, the answer, "Change". The recommended button is tinted rather than marked by its text colour, which did not read as a recommendation; with the chosen card folded, a tint no longer looks like a choice already made.
+
+### Why an `<openui-lang>` tag draws as a block
+
+The guidance reaches the agent inside XML context tags, and weaker models (GLM Flash) answered with the block wrapped in `<openui-lang>…</openui-lang>`: the program was valid, but the chat showed it as one paragraph. The guidance now spells the fence out, and `taggedBlocks.ts` turns such a tag into a fence before an assistant reply renders, so replies already written that way draw too. Only a tag at the start of a line outside code fences counts. Rejecting the tag as a model error was the alternative; the program inside is correct, and the user loses the reply over a wrapper.
 
 ### Why OpenUI's state, bindings and actions are left out
 
