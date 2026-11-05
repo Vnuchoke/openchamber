@@ -376,7 +376,7 @@ export interface GitBranchDetails {
   behind?: number;
 }
 
-export type GitBranchListOptions = { remote?: 'local' };
+export type GitBranchListOptions = { remote?: 'local' | 'live' };
 
 export interface GitBranch {
   all: string[];
@@ -1175,7 +1175,7 @@ interface GitWorktreeAPI {
   create?(directory: string, payload: CreateGitWorktreePayload): Promise<GitWorktreeCreateResult>;
   remove?(directory: string, payload: RemoveGitWorktreePayload): Promise<{ success: boolean }>;
   /** Sets the task title of the worktree at `directory` as the user's; an empty title clears it. */
-  setTitle?(directory: string, title: string): Promise<GitWorktreeTitleResult>;
+  setTitle?(directory: string, title: string, by?: 'user' | 'agent'): Promise<GitWorktreeTitleResult>;
   /** Pins or unpins the task of the worktree at `directory`. */
   setPinned?(directory: string, pinned: boolean, list?: string | null): Promise<GitWorktreePinResult>;
   /** `directory` is the worktree to snapshot. */
@@ -1218,9 +1218,11 @@ export interface GitAPI {
   revertGitHunk?(directory: string, filePath: string, patch: string): Promise<void>;
   isLinkedWorktree(directory: string): Promise<boolean>;
   /**
-   * `remote: 'local'` lists what local refs know, without asking each remote
-   * over the network; for callers that need only the checked-out branch and
-   * its upstream. Runtimes that never ask remotes ignore it.
+   * `remote: 'local'` lists what local refs know. `remote: 'live'` also asks
+   * each remote over the network, which can start an SSH sign-in, so only an
+   * explicit request from the person may pass it. Callers name the mode: a
+   * server older than this contract treats a missing one as live. Runtimes
+   * that never ask remotes ignore it.
    */
   getGitBranches(directory: string, options?: GitBranchListOptions): Promise<GitBranch>;
   getGitUnpushedBranchCounts(directory: string, branches: string[]): Promise<GitUnpushedBranchCounts>;
@@ -1618,6 +1620,9 @@ type GitHubRepoRef = {
 };
 
 export type GitHubPullRequest = {
+  isInMergeQueue?: boolean;
+  mergeQueueEntry?: { state: string; position: number } | null;
+  autoMergeRequest?: { enabledAt: string; mergeMethod: string } | null;
   number: number;
   title: string;
   body?: string;
@@ -1646,6 +1651,9 @@ export type ProviderReadsRefreshScope = { item: RepositoryItemRef } | { lists: t
 
 /** Live fields of a known PR, refreshed in batches for list surfaces. */
 export type ChangeRequestLiveSummary = RepositoryItemRef & {
+  isInMergeQueue?: boolean;
+  mergeQueueEntry?: { state: string; position: number } | null;
+  autoMergeRequest?: { enabledAt: string; mergeMethod: string } | null;
   state: GitHubPullRequest['state'];
   draft: boolean;
   title: string;

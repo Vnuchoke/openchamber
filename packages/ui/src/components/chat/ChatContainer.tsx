@@ -45,6 +45,8 @@ const TIMELINE_REVEAL_FADE_MS = 100;
 // 1 s turn-end glide windows.
 const HISTORY_TRIM_DELAY_MS = 3000;
 import { hasActiveFormToolInCurrentTurn, recoverPendingFormWithRetry } from '@/sync/form-recovery';
+import { useIsPageWaiting } from '@/sync/global-blocking-requests';
+import { holdPendingSynthetic } from './lib/holdPendingSynthetic';
 import { toast } from '@/components/ui';
 import { StatusRowContainer } from './StatusRowContainer';
 import {
@@ -989,13 +991,21 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         ),
     );
     const hasRenderableSessionSnapshot = useSessionRenderable(currentSessionId ?? '', effectiveSessionDirectory);
-    // Messages from sync system.
+    const isPageWaiting = useIsPageWaiting(currentSessionId);
+    // Messages from sync system. Only the live tail overlays a suspended
+    // message's newest parts, so a page held back in its record is lost to
+    // whatever reads the record: an opened Activity builds its rows from it.
+    // Nothing is suspended while a call waits for the user.
+    const suspendedMessageId = isPageWaiting ? null : streamingMessageId;
     const sessionMessageRecords = useSessionMessageRecords(currentSessionId ?? '', effectiveSessionDirectory, {
         enabled: active,
-        suspendPartUpdates: Boolean(streamingMessageId),
-        suspendPartUpdatesForMessageId: streamingMessageId,
+        suspendPartUpdates: Boolean(suspendedMessageId),
+        suspendPartUpdatesForMessageId: suspendedMessageId,
     });
-    const sessionMessages = currentSessionId ? sessionMessageRecords : EMPTY_MESSAGES;
+    const sessionMessages = React.useMemo(() => {
+        if (!currentSessionId) return EMPTY_MESSAGES;
+        return isPageWaiting ? holdPendingSynthetic(sessionMessageRecords) : sessionMessageRecords;
+    }, [currentSessionId, isPageWaiting, sessionMessageRecords]);
     const authSessionExpired = useAuthSessionStore((store) => store.state !== 'ok');
     const wasAuthExpiredRef = React.useRef(false);
     const sessionMessageLoadState = useSessionMessageLoadState(
