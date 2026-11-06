@@ -4,7 +4,10 @@ import { canUseElectronDesktopIPC, invokeDesktop, isDesktopLocalOriginActive } f
 import { getRuntimeApiBaseUrl } from '@/lib/runtime-switch';
 import { desktopHostsGet, getDesktopHostApiUrl, locationMatchesHost, redactSensitiveUrl } from '@/lib/desktopHosts';
 import { getSyncChildStores } from '@/sync/sync-refs';
-import { useGlobalSessionStatusStore } from '@/sync/global-session-status';
+import { useBackgroundShellsStore } from '@/sync/background-shells';
+import { collectOpenTurnSessionIds, useGlobalSessionStatusStore } from '@/sync/global-session-status';
+import { usePrWatchStore } from '@/sync/pr-watch';
+import { useWorkflowActivityStore } from '@/sync/workflow-activity';
 import {
   useGlobalBlockingRequestsStore,
   type BlockingFormRequest,
@@ -23,7 +26,7 @@ import {
 import { createSessionLineage } from '@/stores/sessionLineage';
 import { refreshTrayQuotas, useQuotaStore } from '@/stores/useQuotaStore';
 import { useConfigStore } from '@/stores/useConfigStore';
-import { QUOTA_PROVIDERS, formatWindowLabel, formatQuotaWindowValueLabel } from '@/lib/quota';
+import { formatWindowLabel, formatQuotaWindowValueLabel, quotaProviderList } from '@/lib/quota';
 import { formatMessage, useI18nStore } from '@/lib/i18n';
 import { useProjectsStore } from '@/stores/useProjectsStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
@@ -195,13 +198,13 @@ const resolveSessionSubtitle = (
 const buildUsage = (): TrayUsage => {
   const { dictionary } = useI18nStore.getState();
   const t = (key: Parameters<typeof formatMessage>[1], params?: Parameters<typeof formatMessage>[2]) => formatMessage(dictionary, key, params);
-  const { results, dropdownProviderIds, displayMode } = useQuotaStore.getState();
+  const { results, dropdownProviderIds, displayMode, extensionProviders } = useQuotaStore.getState();
   const mode: TrayUsage['mode'] = displayMode === 'remaining' ? 'remaining' : 'usage';
   if (!dropdownProviderIds.length) return { mode, groups: [] };
 
   const byProvider = new Map(results.map((result) => [result.providerId, result]));
   const groups: TrayUsageGroup[] = [];
-  for (const meta of QUOTA_PROVIDERS) {
+  for (const meta of quotaProviderList(extensionProviders)) {
     if (!dropdownProviderIds.includes(meta.id)) continue;
     const result = byProvider.get(meta.id);
     if (!result || result.configured !== true) continue;
@@ -366,11 +369,21 @@ const buildSnapshot = (instanceName: string, includeTray: boolean): TraySnapshot
   };
   const allSections: Sections = { chats: true, pinned: true, work: true };
 
+  // OpenCode stamps a turn's end on the record even when the session only idles
+  // on background work: until that work ends its row reads as working, so it
+  // counts as unread nowhere here.
+  const openTurnIds = collectOpenTurnSessionIds(useGlobalSessionStatusStore.getState().activeSessionIds, [
+    useWorkflowActivityStore.getState().runningSessionIds,
+    useBackgroundShellsStore.getState().sessionIds,
+    usePrWatchStore.getState().bySession.keys(),
+  ]);
+  const hasUnreadTurn = (session: Session): boolean => isSessionUnread(session) && !openTurnIds.has(session.id);
+
   // Count the full root list, independently of the tray's visibility and limit.
   // Only top-level sessions are ever unread (`isSessionUnread`); a subtask
   // reports to its parent.
   const dockUnread = useUIStore.getState().dockBadgeEnabled
-    ? allSessions.filter((session) => isSessionUnread(session) && hasRowIn(session, shownSections))
+    ? allSessions.filter((session) => hasUnreadTurn(session) && hasRowIn(session, shownSections))
     : [];
   const dockBadgeCount = dockUnread.length;
   const dockUnreadSessions = dockUnread
@@ -419,8 +432,8 @@ const buildSnapshot = (instanceName: string, includeTray: boolean): TraySnapshot
         title: session.title || 'Untitled session',
         status: rollupStatus(family),
         branch: directory ? (live.branchByDirectory.get(directory) ?? '') : '',
-        unseen: isSessionUnread(session) ? 1 : 0,
-        hasError: isSessionUnreadWithError(session),
+        unseen: hasUnreadTurn(session) ? 1 : 0,
+        hasError: hasUnreadTurn(session) && isSessionUnreadWithError(session),
         directory,
         subtitle: resolveSessionSubtitle(directory, session, projects, worktreesByProject, live.branchByDirectory),
       };
@@ -485,6 +498,16 @@ export const useTraySync = (): void => {
     };
 
     const unsubscribeGlobal = useGlobalSessionsStore.subscribe(() => scheduleFlush());
+    // Cross-project status map: fed live by the sync dispatcher from the global
+    // event stream and seeded from the host by the root global-sessions poll.
+    // The tray used to poll `/session/status?directory=` for up to 20
+    // directories every 5 seconds, which made OpenCode create an instance for
+    // each of them; the host seed covers the same startup gap for free.
+    const unsubscribeGlobalStatus = useGlobalSessionStatusStore.subscribe(() => scheduleFlush());
+    // Background work ending turns a waiting session unread with no change to its record.
+    const unsubscribeWorkflows = useWorkflowActivityStore.subscribe(() => scheduleFlush());
+    const unsubscribeShells = useBackgroundShellsStore.subscribe(() => scheduleFlush());
+    const unsubscribePrWatches = usePrWatchStore.subscribe(() => scheduleFlush());
     const unsubscribeUI = useUIStore.subscribe((state, previous) => {
       if (state.dockBadgeEnabled !== previous.dockBadgeEnabled
         || state.sessionWorkEnabled !== previous.sessionWorkEnabled) {
@@ -508,6 +531,10 @@ export const useTraySync = (): void => {
       disposed = true;
       if (flushTimer !== null) window.clearTimeout(flushTimer);
       unsubscribeGlobal();
+      unsubscribeGlobalStatus();
+      unsubscribeWorkflows();
+      unsubscribeShells();
+      unsubscribePrWatches();
       unsubscribeUI();
       unsubscribeProjects();
       unsubscribeWorktrees();
@@ -566,12 +593,6 @@ export const useTraySync = (): void => {
     rebindStores();
 
     const unsubscribeGit = useGitStore.subscribe(() => scheduleFlush());
-    // Cross-project status map: fed live by the sync dispatcher from the global
-    // event stream and seeded from the host by the root global-sessions poll.
-    // The tray used to poll `/session/status?directory=` for up to 20
-    // directories every 5 seconds, which made OpenCode create an instance for
-    // each of them; the host seed covers the same startup gap for free.
-    const unsubscribeGlobalStatus = useGlobalSessionStatusStore.subscribe(() => scheduleFlush());
     const unsubscribeGlobalRequests = useGlobalBlockingRequestsStore.subscribe(() => scheduleFlush());
     const unsubscribeSessionOrder = useSessionOrderingStore.subscribe(() => scheduleFlush());
 
@@ -593,7 +614,6 @@ export const useTraySync = (): void => {
       stopBadgeSync();
       window.clearInterval(interval);
       unsubscribeGit();
-      unsubscribeGlobalStatus();
       unsubscribeGlobalRequests();
       unsubscribeSessionOrder();
       unsubscribeQuota();

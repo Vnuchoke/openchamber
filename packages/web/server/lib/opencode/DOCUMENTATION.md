@@ -393,6 +393,7 @@ The runtime maintains active-session count incrementally from idempotent activit
   - `waitForAgentPresence(agentName, timeoutMs?, intervalMs?)`
   - `refreshOpenCodeAfterConfigChange(reason, options?)`
   - `bootstrapOpenCodeAtStartup()`
+  - `scheduleBootstrapRetry(bootstrap, onAlreadyRunning)`: when the last bootstrap left no managed OpenCode, runs `bootstrap` again after 5, 15, 30 and then every 60 seconds, or `onAlreadyRunning` if a restart has started OpenCode by then, and answers whether it scheduled a run
   - `startHealthMonitoring(healthCheckIntervalMs)`
   - `waitForPortRelease(port, timeoutMs, hostname?)`
   - `killProcessOnPort(port)`
@@ -435,6 +436,8 @@ Upstream health is probed with `GET /api/info` (OpenCode 2.0.8 removed `/api/hea
 Transport-triggered health checks share the periodic monitor's failure accounting interval. Rapid WS reconnect callbacks therefore cannot exhaust the managed-process restart threshold using one cached unhealthy result; an exited managed process still restarts immediately.
 
 Managed health failures are classified as `timeout`, `connection_refused`, `connection_reset`, `invalid_response`, or `error`. The lifecycle retains the latest counted failure with a bounded detail string and source. Managed process wrappers continue capturing a sanitized, bounded stderr tail after readiness and retain exit code/signal. Before replacing a managed process, lifecycle snapshots the reason, latest health failure, process diagnostics/aliveness, busy-session count, and timestamp into `lastOpenCodeRestartDiagnostics`; successful startup does not clear this snapshot, and `/health` exposes it for post-restart diagnosis without process environment or credentials.
+
+A bootstrap that leaves no managed OpenCode is retried for as long as the server runs, because the health monitor only watches a running process and nothing else would start one. `index.js` skips the steps that need OpenCode (health monitoring, the global watcher, legacy migrations) until a run succeeds. A retry and a restart never start OpenCode at once: a retry waits for a restart in flight, and a restart waits for a retry in flight and then still restarts, since that run may have read the configuration the restart is for. `lastOpenCodeError` keeps the last failure during a retry, so the UI goes on showing the real reason. A rejected binary (invalid path, unsupported version) is not retried, since it fails the same way until the user changes it; an external server is not retried, since OpenChamber does not start it.
 
 Managed process ownership starts at spawn. The registry and runtime process
 handle include children that have not announced readiness yet, so shutdown can
@@ -599,9 +602,14 @@ Only files in the v2 `plugins/` directory are editable through the plugins
 page; a package directory or a v1 `plugin/` file is listed as a package that
 OpenCode loads and OpenChamber does not touch.
 
-`OPENCODE_CONFIG` adds a file on top of the global one and replaces nothing,
-so the plugins page lists user entries from both. A spec in both is one entry,
-the `OPENCODE_CONFIG` one, and new user entries are written there. User plugin
+The plugins page lists entries from every config file OpenCode takes plugins
+from: both global files (`opencode.json` and `opencode.jsonc`),
+`OPENCODE_CONFIG`, and the files found walking up from the project folder. Each
+file adds its own entries and replaces nothing. A parent folder's file reaches
+every project below it, so it counts as user scope. A spec in two files of one
+scope is one entry, the later file's, and edits go to that file. New user
+entries are written to `OPENCODE_CONFIG` when it is set, else to the primary
+global file. User plugin
 files stay in the global `plugins/` folder: OpenCode scans plugin folders only
 in config directories, never next to the `OPENCODE_CONFIG` file. The VS Code
 bridge (`opencodeConfig.ts`) keeps the same rules.
@@ -1049,7 +1057,7 @@ within a ten-minute overall deadline.
   - `GET /api/projects/:projectId/icon`
   - `PUT /api/projects/:projectId/icon`
   - `DELETE /api/projects/:projectId/icon`
-  - `POST /api/projects/:projectId/icon/discover`
+  - `POST /api/projects/:projectId/icon/discover`: writes the icon through `persistResolvedSettings`, so a save that lands during the file search keeps its projects.
 
 ## Public exports (skills.js)
 - `getSkillSources(skillName, workingDirectory, discoveredSkill?, options?)`: returns the skill's Markdown metadata and instructions, source paths and scopes, and supporting files. Supporting files are included by default. `GET /api/config/skills` calls it once per skill with `{ includeSupportingFiles: false }`, which omits `md.supportingFiles` and skips walking supporting files.

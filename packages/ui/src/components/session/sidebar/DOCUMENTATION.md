@@ -58,11 +58,13 @@ Activity indicators use `SessionActivityIndicator` in project and timeline rows,
 header tabs, switchers and collapsed aggregates. Each state is a static icon:
 the session's own run is `circle`, a pause held open by a background subagent
 is `robot`, one held open by a background command is `terminal`, an agent that
-ended its turn to wait on its pull request (`sync/pr-watch.ts`) is
-`git-pull-request` (all info color; `useSessionTurnActivity` in
-`sync/global-session-status.ts` decides, the session's own run first, then the
-subagent, the command, the pull request), and a finished unseen turn is
-`checkbox-circle` (success color). Collapsed aggregates show only running or
+ended its turn to wait on its pull request (`sync/pr-watch.ts`) is `circle`
+again, because a linked pull request already puts `git-pull-request` on the
+row, and only the tooltip tells it from a run (all info color;
+`useSessionTurnActivity` in `sync/global-session-status.ts` decides, the
+session's own run first, then the subagent, the command, the pull request), and
+a finished unseen turn is `checkbox-circle` (success color). Collapsed
+aggregates show only running or
 unread. The local Appearance preference `animatedActivityIndicators`
 is off by default. Enabling it swaps every running kind for a stepped spinner,
 even when the OS requests reduced motion; the unread icon stays. A permission
@@ -585,8 +587,9 @@ the same Mark all as read.
   its project too never collides; collapse and Show more state stay keyed by
   the group and are shared.
 - Grouped by time, all-projects mode replaces the project headers with one
-  `timeline` zone: project-root drafts first, then every work Pinned and In
-  work do not list, by the lifecycle order of its latest session, then the
+  `timeline` zone: the projects' root folders first (see "Where a work
+  files"), then project-root drafts, then every work Pinned, In work and the
+  folders do not list, by the lifecycle order of its latest session, then the
   worktrees nobody has started a session in. It is virtualized, so it has no
   reveal limit, and ends with the statuses a project header would show for
   projects it lists nothing for (one loading line, one line per failed
@@ -702,8 +705,39 @@ the folder store and the server file it with the same assign and unassign
 changes as a session. A filed worktree renders inside its folder, one level
 deeper, and nowhere else under the project; filed into a folder that is gone,
 it stays under the project. The work row's menu (the "⋯" button and a right-click on the row show the
-same items) files it (Move to folder);
+same items) files it (Move to folder), a new folder included;
 dragging a worktree onto a folder is not offered.
+
+### Where a work files
+
+Filing follows where a row lives. A session of the project root, a lane of a
+run and a chat file in the root's or the Chats folders. A session inside a
+worktree or a space is part of that work, which files whole, so the root's
+folders are not offered to it, in the menu, a drag or a selection: filed there
+it stayed in the worktree and left an empty folder. `folderOwnerKeyOf` in the
+row model gives such a session the worktree's own owner key
+(`getWorkFolderOwnerKey`), which only the folders inside that worktree carry;
+older data can hold these, and they stay usable. The selection scope stays the
+project, so a selection can still span a project and its worktrees; its folder
+action takes what files in the project and leaves the rest.
+
+Move to folder shows on every session row but the archive's: under a project,
+in Chats and with Detailed rows, and in the sections and the list by time. There the folder
+row may be off screen or not drawn at all, so a new folder is named in
+`folders/NewFolderDialog.tsx` instead of in place. A section reaches folders through the
+Folder condition (`sections/DOCUMENTATION.md`). The list by time draws every
+project's root folders first, as a file manager lists folders before files,
+with the project's name on the row while several projects are registered: what
+they hold leaves the flat list, which stays ordered by recency. A search lists
+it flat again. The project header's menu makes an empty folder. The phone neither
+files nor makes folders: its swipes have no room for it (maintainer,
+2026-11-05).
+
+A session or worktree a section took out of its project stays a member of its
+folder (`memberCount` on the folder row) and comes back there when it leaves
+the section: the rule is the section's own ("Also show in work under
+projects" keeps it in the folder as well). The folder then reads as empty, with no
+chevron, while its saved collapse stays and its delete dialog counts the members.
 
 ## Locations and detailed rows
 
@@ -1060,7 +1094,7 @@ matching and ordering. Search does not fetch sessions or broaden list membership
 - Pins and folder assignments are not pruned from the first startup snapshot or from optimistic mutations. Confirmed local deletion and routed external deletion clean immediately; a later authoritative omission after an established baseline covers missed external delete events.
 - Pending-permission/question row badges ride in the meta cluster at the row's end with the time and status, and hide with it on hover or while the row menu is open, except on non-VS Code always-visible-actions rows, which reserve permanent padding and keep the cluster shown. VS Code hover-reveals its actions over the row's right edge even under `alwaysShowActions`, so its cluster keeps hiding.
 - Hover-revealed actions on session rows, worktree headers and project headers swap in over the row's end (the right, or the left in a right-to-left layout) at once, without a fade; they do not re-lay the row out. What they cover (date, branch, badges, indicators) hides in the same step, and the title or label's tail fades away under them through the `oc-actions-mask` utility (`index.css`): the row's text line is an `@container`, `--oc-actions-reserve` says how far the actions reach in from its end edge, `--oc-actions-inset` how far the masked text starts from its start edge. A title whose own direction differs from the interface (`dir="auto"`) starts under the actions, so it takes `padding-inline-start` of the reserve instead of the fade. Reserves, insets and the mask's own gradient stops are rem so they track the interface font size, and the mask multiplies reserves and insets by `--padding-scale` because the buttons and offsets they describe are spacing tokens that grow with the density setting; a pixel reserve would stop short of the buttons at larger sizes and let the title show through. Change a reserve whenever an action's size, count or offset changes. Only permanently shown actions (`alwaysShowActions`) take layout room.
-- Tooltips that list PRs or issues (session rows, timeline PR badges, worktree headers) render them as links through `sessions/SidebarRefLinks.tsx`. The PR badge and header tooltips close 750 ms after the pointer leaves, so the pointer can travel in; the whole-row tooltip closes at once and relies on the popup staying open while the pointer heads into it. The row and header action buttons sit in their own `TooltipProvider`: the pointer crosses them on the way, and a same-group tooltip would replace the open one at once. Every row but VS Code's has the whole-row tooltip, opening to the right (title, time, project, branch, links, recap); every other tooltip on a row, a header's folder name included, opens above its element (`sessions/RowMarkTooltip.tsx` for status marks), so it never covers the neighbouring marks and actions. A session menu item that opens a submenu explains itself only while disabled: the hint would cover the open submenu.
+- Tooltips that list PRs or issues (session rows, timeline PR badges, worktree headers) render them as links through `sessions/SidebarRefLinks.tsx`. A link into a repository that is none of the project's names it after the number (`#118826 · dotnet/runtime · Completed`), since numbers are per repository; the repository is the part that truncates, and it is asked only while the tooltip is open. The chat's Context sources rows name it the same way (`useOutsideRepository`), where the title is what truncates. The PR badge and header tooltips close 750 ms after the pointer leaves, so the pointer can travel in; the whole-row tooltip closes at once and relies on the popup staying open while the pointer heads into it. The row and header action buttons sit in their own `TooltipProvider`: the pointer crosses them on the way, and a same-group tooltip would replace the open one at once. Every row but VS Code's has the whole-row tooltip, opening to the right (title, time, project, branch, links, recap); every other tooltip on a row, a header's folder name included, opens above its element (`sessions/RowMarkTooltip.tsx` for status marks), so it never covers the neighbouring marks and actions. A session menu item that opens a submenu explains itself only while disabled: the hint would cover the open submenu.
 
 
 ## Project action indicators

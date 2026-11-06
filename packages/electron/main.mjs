@@ -20,6 +20,7 @@ import { persistMainWindowState } from './window-state.mjs';
 import { attachWindowVisibility, isNativeWindowVisible } from './window-visibility.mjs';
 import { createTrayController } from './tray.mjs';
 import { buildDockMenuTemplate, buildUnreadJumpList, isJumpListSessionId } from './dock-menu.mjs';
+import { createSessionLinkGate } from './session-link-gate.mjs';
 import { applyDevDockIdentity, applyDockBadge } from './dev-dock-identity.mjs';
 import { attachDevWindowTape } from './dev-window-tape.mjs';
 import { resolveManagedOpenCodeCwd } from './opencode-cwd.mjs';
@@ -37,6 +38,7 @@ import {
   buildMainWindowOptions,
   buildRendererAdditionalArguments,
   buildStartupSplashUrl,
+  isStartupSplashUrl,
   getLoginItemOptions,
   getWindowIconPath,
   installPackagedUiRequestHandler,
@@ -76,7 +78,7 @@ import { isSplashColor, redactHostsConfigForRemote } from './remote-page-policy.
 import { connectDefaultSshInstanceAtStartup, resolveDefaultSshInstanceId } from './startup-ssh.mjs';
 import { findReusableHostWindowIndex, normalizeNotificationInput, readTrimmedString, resolveHostEntryForRuntimeKey, resolveSenderHostId, runtimeKeyForDeepLinkHost, stampForwardedNotification } from './notification-host-routing.mjs';
 import { isPackagedUiRuntimeRequest } from './packaged-ui-routing.mjs';
-import { RUNTIME_CONFIG_SCRIPT_PATHNAME, claimRuntimeConfigScriptRequest, createRuntimeConfigGate, injectRuntimeConfig } from './packaged-runtime-config.mjs';
+import { RUNTIME_CONFIG_SCRIPT, RUNTIME_CONFIG_SCRIPT_PATHNAME, createRuntimeConfigGate, injectRuntimeConfig, isRuntimeConfigFrame } from './packaged-runtime-config.mjs';
 import { settleMainProcessCompileCache } from './compile-cache.mjs';
 import { probeDirectHostWithRetry } from './host-probe-policy.mjs';
 import { probeElectronHostWithDeadline } from './electron-host-probe.mjs';
@@ -98,6 +100,7 @@ import {
   selectQuakeToggleAction,
 } from './quake-mode.mjs';
 import { createContextMenuLabels, menuLabel, normalizeMenuLocale, roleMenuItem } from './menu-locales.mjs';
+import { menuAccelerator, normalizeMenuShortcuts } from './menu-shortcuts.mjs';
 import { createCopyLinkMenuHook } from './context-menu-clipboard.mjs';
 import { createCopyMenuAction } from './menu-copy-action.mjs';
 import {
@@ -1038,18 +1041,11 @@ const buildPackagedUiUrl = (pathname = '/index.html') => new URL(pathname, `${pa
 // see packaged-runtime-config.mjs.
 const runtimeConfigGate = createRuntimeConfigGate();
 
-const buildRuntimeConfigScript = () => {
-  const apiBaseUrl = state.apiBaseUrl || state.sidecarUrl || '';
-  const localOrigin = state.localOrigin || state.sidecarUrl || '';
-  return `if(window.__OPENCHAMBER_LOCAL_ORIGIN__===undefined){window.__OPENCHAMBER_LOCAL_ORIGIN__=${JSON.stringify(localOrigin)};}if(window.__OPENCHAMBER_API_BASE_URL__===undefined){window.__OPENCHAMBER_API_BASE_URL__=${JSON.stringify(apiBaseUrl)};}if(window.__OPENCHAMBER_CLIENT_TOKEN__===undefined&&${JSON.stringify(state.clientToken || '')}){window.__OPENCHAMBER_CLIENT_TOKEN__=${JSON.stringify(state.clientToken || '')};}`;
-};
+// Settles when the launch's own startup has finished; a startup that fails
+// exits the app instead.
+const initialStartup = Promise.withResolvers();
 
-const injectRuntimeConfigIntoHtml = (html) => {
-  if (runtimeConfigGate.isHeld()) {
-    return injectRuntimeConfig(html, { pending: true, scriptBody: '', nonce: runtimeConfigGate.issueScriptNonce() });
-  }
-  return injectRuntimeConfig(html, { pending: false, scriptBody: buildRuntimeConfigScript() });
-};
+const injectRuntimeConfigIntoHtml = (html) => injectRuntimeConfig(html, { pending: runtimeConfigGate.isHeld() });
 
 /**
  * The browser panel's own session, kept separate from OpenChamber's.
@@ -1285,12 +1281,8 @@ const registerPackagedUiProtocol = () => {
     }
 
     if (new URL(request.url).pathname === RUNTIME_CONFIG_SCRIPT_PATHNAME) {
-      // Carries the client token: only the document it was issued to gets it.
-      if (!claimRuntimeConfigScriptRequest(runtimeConfigGate, request)) {
-        return new Response('', { status: 404, headers: { 'Cache-Control': 'no-store' } });
-      }
       await runtimeConfigGate.whenReleased();
-      return new Response(buildRuntimeConfigScript(), {
+      return new Response(RUNTIME_CONFIG_SCRIPT, {
         headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' },
       });
     }
@@ -2180,8 +2172,8 @@ const dispatchDeepLink = (link) => {
 
 // Session links wait for the renderer to take them (desktop_take_pending_session_links)
 // once its listener is mounted: an event sent when the page has merely loaded
-// reached no listener on a cold start and the link was lost. The late flush
-// still delivers them to a renderer that never asks (an older remote UI).
+// reached no listener on a cold start and the link was lost. The gate's fallback
+// still delivers them to a renderer that never asks (a remote page).
 const flushPendingDeepLinks = ({ includeSessions }) => {
   const kept = [];
   while (pendingDeepLinks.length > 0) {
@@ -2195,6 +2187,11 @@ const flushPendingDeepLinks = ({ includeSessions }) => {
   pendingDeepLinks.push(...kept);
 };
 
+const mainWindowSessionLinkGate = createSessionLinkGate({
+  fallbackMs: PENDING_SESSION_LINK_FALLBACK_MS,
+  onFallback: () => flushPendingDeepLinks({ includeSessions: true }),
+});
+
 const isMainWindowReadyForDeepLink = () =>
   Boolean(state.mainWindow)
   && !state.mainWindow.isDestroyed()
@@ -2204,7 +2201,7 @@ const handleDeepLinks = (urls) => {
   for (const raw of urls) {
     const parsed = parseDeepLink(raw);
     if (!parsed) continue;
-    if (isMainWindowReadyForDeepLink()) {
+    if (isMainWindowReadyForDeepLink() && (parsed.type !== 'session' || mainWindowSessionLinkGate.isListening())) {
       dispatchDeepLink(parsed);
     } else {
       pendingDeepLinks.push(parsed);
@@ -2240,6 +2237,16 @@ const closeTabOrWindow = () => {
     return;
   }
   target.close();
+};
+
+// The combos the renderer sends for menu items Settings can rebind. Until the
+// first update the menus use their built-in keys.
+let menuShortcuts = {};
+let appMenuLocale = 'en';
+const menuKey = (id, fallback) => menuAccelerator(menuShortcuts, id, fallback);
+
+const applyApplicationMenu = () => {
+  Menu.setApplicationMenu(process.platform === 'darwin' ? buildMacMenu(appMenuLocale) : buildAutoHiddenMenu());
 };
 
 const getMenuTargetWindow = () => {
@@ -2727,6 +2734,7 @@ const createBrowserWindow = ({ label, restoreGeometry, url, runtimeConfig = {}, 
     state.focusedWindowIds.delete(browserWindow.id);
     if (state.mainWindow && browserWindow.id === state.mainWindow.id) {
       mainWindowTrayActionsReady = false;
+      mainWindowSessionLinkGate.documentReplaced();
       state.mainWindow = null;
     }
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -2818,6 +2826,8 @@ const createBrowserWindow = ({ label, restoreGeometry, url, runtimeConfig = {}, 
   // same fallback a window that has not reported yet uses.
   browserWindow.webContents.on('did-navigate', (_event, url) => {
     if (!isAppUiNavigationTarget(url)) browserWindow.__ocRuntimeKey = null;
+    // On commit: a navigation that only started can still leave this document in place.
+    if (browserWindow === state.mainWindow) mainWindowSessionLinkGate.documentReplaced();
   });
   browserWindow.webContents.on('did-start-navigation', (details) => {
     if (browserWindow === state.mainWindow && details.isMainFrame && !details.isSameDocument) {
@@ -2878,11 +2888,12 @@ const createBrowserWindow = ({ label, restoreGeometry, url, runtimeConfig = {}, 
         documentClass: classifyStartupDocument(browserWindow.webContents.getURL()),
       });
     }
-    if (state.mainWindow && browserWindow.id === state.mainWindow.id && pendingDeepLinks.length > 0) {
-      const timer = setTimeout(() => flushPendingDeepLinks({ includeSessions: false }), 400);
-      if (typeof timer?.unref === 'function') timer.unref();
-      const lateTimer = setTimeout(() => flushPendingDeepLinks({ includeSessions: true }), PENDING_SESSION_LINK_FALLBACK_MS);
-      if (typeof lateTimer?.unref === 'function') lateTimer.unref();
+    if (state.mainWindow && browserWindow.id === state.mainWindow.id) {
+      if (pendingDeepLinks.length > 0) {
+        const timer = setTimeout(() => flushPendingDeepLinks({ includeSessions: mainWindowSessionLinkGate.isListening() }), 400);
+        if (typeof timer?.unref === 'function') timer.unref();
+      }
+      if (!isStartupSplashUrl(browserWindow.webContents.getURL())) mainWindowSessionLinkGate.applicationDocumentLoaded();
     }
   });
 
@@ -3000,6 +3011,15 @@ const activateMainWindow = async (url, localOrigin, bootOutcome, runtimeConfig =
 };
 
 const openMainWindow = async () => {
+  if (!state.startupResolved) {
+    // The tray, a second launch, a deep link or a shortcut can ask for a window
+    // while startup still runs. Resolving next to it would start the in-process
+    // server a second time, and that run replaces the first one's listener.
+    await initialStartup.promise;
+    // A foreground startup has opened the window this caller asked for.
+    if (state.mainWindow && !state.mainWindow.isDestroyed()) return state.mainWindow;
+  }
+
   if (!state.startupResolved) {
     const { initialUrl, localOrigin, bootOutcome, apiBaseUrl, clientToken, requestHeaders } = await resolveInitialUrl();
     return activateMainWindow(initialUrl, localOrigin, bootOutcome, { apiBaseUrl, clientToken, requestHeaders });
@@ -3416,9 +3436,7 @@ const resolveMiniChatRuntimeConfig = (browserWindow, args = {}) => {
 const showSplashStatus = (text) => {
   const mainWindow = state.mainWindow;
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  // Development shows the splash as a data: URL, packaged builds as /__splash.
-  const url = mainWindow.webContents.getURL();
-  if (!url.startsWith('data:') && !url.endsWith('/__splash')) return;
+  if (!isStartupSplashUrl(mainWindow.webContents.getURL())) return;
   const script = `(() => {
     const show = () => {
     const stack = document.querySelector('.stack');
@@ -5332,6 +5350,7 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
     case 'desktop_take_pending_session_links':
       // Session links open in the main window only.
       if (!browserWindow || !state.mainWindow || browserWindow.id !== state.mainWindow.id) return [];
+      mainWindowSessionLinkGate.documentAsked();
       return takePendingSessionDeepLinks();
 
     case 'desktop_open_host_session': {
@@ -5364,7 +5383,7 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
       // No live main window (e.g. "Open in main window" from a mini-chat after
       // the main window was closed): create one and open the session in it. A
       // fresh window can't take an immediate emit, so queue the session as a
-      // pending deep-link and let did-finish-load flush it once ready.
+      // pending deep-link for its renderer to take once it listens.
       if (!hasMainWindow) {
         if (sessionId) pendingDeepLinks.push({ type: 'session', value: sessionId });
         await openMainWindow();
@@ -5419,8 +5438,18 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
       if (typeof args.locale === 'string') {
         setContextMenuLocale(args.locale);
         if (process.platform === 'darwin') {
-          Menu.setApplicationMenu(buildMacMenu(normalizeMenuLocale(args.locale)));
+          appMenuLocale = normalizeMenuLocale(args.locale);
+          applyApplicationMenu();
         }
+      }
+      return null;
+    }
+
+    case 'desktop_set_menu_shortcuts': {
+      const next = normalizeMenuShortcuts(args.shortcuts);
+      if (JSON.stringify(next) !== JSON.stringify(menuShortcuts)) {
+        menuShortcuts = next;
+        applyApplicationMenu();
       }
       return null;
     }
@@ -5508,7 +5537,7 @@ const buildMacMenu = (locale = 'en') => {
     {
       label: t('file'),
       submenu: [
-        { label: t('newWindow'), accelerator: 'Cmd+Shift+Alt+N', click: () => void handleInvoke(null, 'desktop_new_window') },
+        { label: t('newWindow'), accelerator: menuKey('new_window', 'Cmd+Shift+Alt+N'), click: () => void handleInvoke(null, 'desktop_new_window') },
         { type: 'separator' },
         { label: t('newSession'), accelerator: 'Cmd+N', click: () => dispatchAction('new-session') },
         { label: t('newWorktree'), accelerator: 'Cmd+Shift+N', click: () => dispatchAction('new-worktree-session') },
@@ -5538,7 +5567,7 @@ const buildMacMenu = (locale = 'en') => {
       label: t('view'),
       submenu: [
         { label: t('toggleRightSidebar'), accelerator: 'Cmd+B', click: () => dispatchAction('toggle-right-sidebar') },
-        { label: t('openGitSidebar'), accelerator: 'Cmd+Shift+G', click: () => dispatchAction('open-right-sidebar-git') },
+        { label: t('openGitSidebar'), accelerator: menuKey('open_git_panel', 'Cmd+Shift+G'), click: () => dispatchAction('open-right-sidebar-git') },
         { label: t('openFilesSidebar'), click: () => dispatchAction('open-right-sidebar-files') },
         { type: 'separator' },
         { label: t('toggleTerminalDock'), accelerator: 'Cmd+J', click: () => dispatchAction('toggle-terminal') },
@@ -5549,7 +5578,7 @@ const buildMacMenu = (locale = 'en') => {
         { label: t('systemTheme'), click: () => dispatchAction('theme-system') },
         { type: 'separator' },
         { label: t('toggleSessionSidebar'), accelerator: 'Cmd+Alt+L', click: () => dispatchAction('toggle-sidebar') },
-        { label: t('toggleMemoryDebug'), accelerator: 'Cmd+Shift+D', click: () => dispatchAction('toggle-memory-debug') },
+        { label: t('toggleMemoryDebug'), accelerator: menuKey('toggle_memory_debug', 'Cmd+Shift+D'), click: () => dispatchAction('toggle-memory-debug') },
         { type: 'separator' },
         roleItem('togglefullscreen', 'toggleFullScreen'),
       ],
@@ -5560,9 +5589,9 @@ const buildMacMenu = (locale = 'en') => {
         roleItem('minimize', 'minimize'),
         roleItem('zoom', 'zoom'),
         { type: 'separator' },
-        { label: t('zoomIn'), accelerator: 'CmdOrCtrl+=', click: () => dispatchAction('zoom-in') },
-        { label: t('zoomOut'), accelerator: 'CmdOrCtrl+-', click: () => dispatchAction('zoom-out') },
-        { label: t('resetZoom'), accelerator: 'CmdOrCtrl+0', click: () => dispatchAction('zoom-reset') },
+        { label: t('zoomIn'), accelerator: menuKey('zoom_in', 'CmdOrCtrl+='), click: () => dispatchAction('zoom-in') },
+        { label: t('zoomOut'), accelerator: menuKey('zoom_out', 'CmdOrCtrl+-'), click: () => dispatchAction('zoom-out') },
+        { label: t('resetZoom'), accelerator: menuKey('zoom_reset', 'CmdOrCtrl+0'), click: () => dispatchAction('zoom-reset') },
         { type: 'separator' },
         { label: t('close'), accelerator: 'CmdOrCtrl+W', click: closeTabOrWindow },
       ],
@@ -5571,8 +5600,8 @@ const buildMacMenu = (locale = 'en') => {
       label: t('help'),
       submenu: [
         { label: t('keyboardShortcuts'), accelerator: 'Cmd+.', click: () => dispatchAction('help-dialog') },
-        { label: t('showDiagnostics'), accelerator: 'Cmd+Shift+L', click: () => dispatchAction('download-logs') },
-        { label: t('toggleDeveloperTools'), accelerator: 'Cmd+Alt+I', click: () => openDevToolsForMenuTarget() },
+        { label: t('showDiagnostics'), accelerator: menuKey('show_diagnostics', 'Cmd+Shift+L'), click: () => dispatchAction('download-logs') },
+        { label: t('toggleDeveloperTools'), accelerator: menuKey('toggle_developer_tools', 'Cmd+Alt+I'), click: () => openDevToolsForMenuTarget() },
         { type: 'separator' },
         { label: t('clearCache'), click: () => void handleInvoke(null, 'desktop_clear_cache') },
         { type: 'separator' },
@@ -5611,7 +5640,7 @@ const buildAutoHiddenMenu = (locale = 'en') => {
     {
       label: t('file'),
       submenu: [
-        { label: t('newWindow'), accelerator: 'Ctrl+Shift+Alt+N', click: () => void handleInvoke(null, 'desktop_new_window') },
+        { label: t('newWindow'), accelerator: menuKey('new_window', 'Ctrl+Shift+Alt+N'), click: () => void handleInvoke(null, 'desktop_new_window') },
         { type: 'separator' },
         { label: t('newSession'), accelerator: 'Ctrl+N', click: () => dispatchAction('new-session') },
         { label: t('newWorktree'), accelerator: 'Ctrl+Shift+N', click: () => dispatchAction('new-worktree-session') },
@@ -5639,10 +5668,10 @@ const buildAutoHiddenMenu = (locale = 'en') => {
       submenu: [
         roleItem('reload', 'reload'),
         roleItem('forceReload', 'forceReload'),
-        { label: t('toggleDeveloperTools'), accelerator: 'Ctrl+Alt+I', click: () => openDevToolsForMenuTarget() },
+        { label: t('toggleDeveloperTools'), accelerator: menuKey('toggle_developer_tools', 'Ctrl+Alt+I'), click: () => openDevToolsForMenuTarget() },
         { type: 'separator' },
         { label: t('toggleRightSidebar'), accelerator: 'Ctrl+B', click: () => dispatchAction('toggle-right-sidebar') },
-        { label: t('openGitSidebar'), accelerator: 'Ctrl+Shift+G', click: () => dispatchAction('open-right-sidebar-git') },
+        { label: t('openGitSidebar'), accelerator: menuKey('open_git_panel', 'Ctrl+Shift+G'), click: () => dispatchAction('open-right-sidebar-git') },
         { label: t('openFilesSidebar'), click: () => dispatchAction('open-right-sidebar-files') },
         { type: 'separator' },
         { label: t('toggleTerminalDock'), accelerator: 'Ctrl+J', click: () => dispatchAction('toggle-terminal') },
@@ -5653,7 +5682,7 @@ const buildAutoHiddenMenu = (locale = 'en') => {
         { label: t('systemTheme'), click: () => dispatchAction('theme-system') },
         { type: 'separator' },
         { label: t('toggleSessionSidebar'), accelerator: 'Ctrl+Alt+L', click: () => dispatchAction('toggle-sidebar') },
-        { label: t('toggleMemoryDebug'), accelerator: 'Ctrl+Shift+D', click: () => dispatchAction('toggle-memory-debug') },
+        { label: t('toggleMemoryDebug'), accelerator: menuKey('toggle_memory_debug', 'Ctrl+Shift+D'), click: () => dispatchAction('toggle-memory-debug') },
         { type: 'separator' },
         roleItem('togglefullscreen', 'toggleFullScreen'),
       ],
@@ -5669,17 +5698,17 @@ const buildAutoHiddenMenu = (locale = 'en') => {
         { label: t('previousSession'), click: () => dispatchAction('previous-session') },
         { label: t('nextSession'), click: () => dispatchAction('next-session') },
         { type: 'separator' },
-        { label: t('previousProject'), accelerator: 'Ctrl+Alt+Up', click: () => dispatchAction('previous-project') },
-        { label: t('nextProject'), accelerator: 'Ctrl+Alt+Down', click: () => dispatchAction('next-project') },
+        { label: t('previousProject'), accelerator: menuKey('previous_project', 'Ctrl+Alt+Up'), click: () => dispatchAction('previous-project') },
+        { label: t('nextProject'), accelerator: menuKey('next_project', 'Ctrl+Alt+Down'), click: () => dispatchAction('next-project') },
       ],
     },
     {
       label: t('window'),
       submenu: [
         roleItem('minimize', 'minimize'),
-        { label: t('zoomIn'), accelerator: 'Ctrl+=', click: () => dispatchAction('zoom-in') },
-        { label: t('zoomOut'), accelerator: 'Ctrl+-', click: () => dispatchAction('zoom-out') },
-        { label: t('resetZoom'), accelerator: 'Ctrl+0', click: () => dispatchAction('zoom-reset') },
+        { label: t('zoomIn'), accelerator: menuKey('zoom_in', 'Ctrl+='), click: () => dispatchAction('zoom-in') },
+        { label: t('zoomOut'), accelerator: menuKey('zoom_out', 'Ctrl+-'), click: () => dispatchAction('zoom-out') },
+        { label: t('resetZoom'), accelerator: menuKey('zoom_reset', 'Ctrl+0'), click: () => dispatchAction('zoom-reset') },
         roleItem('togglefullscreen', 'toggleFullScreen'),
         { type: 'separator' },
         { label: t('close'), accelerator: 'CmdOrCtrl+W', click: closeTabOrWindow },
@@ -5689,7 +5718,7 @@ const buildAutoHiddenMenu = (locale = 'en') => {
       label: t('help'),
       submenu: [
         { label: t('keyboardShortcuts'), accelerator: 'Ctrl+.', click: () => dispatchAction('help-dialog') },
-        { label: t('showDiagnostics'), accelerator: 'Ctrl+Shift+L', click: () => dispatchAction('download-logs') },
+        { label: t('showDiagnostics'), accelerator: menuKey('show_diagnostics', 'Ctrl+Shift+L'), click: () => dispatchAction('download-logs') },
         { type: 'separator' },
         { label: t('clearCache'), click: () => void handleInvoke(null, 'desktop_clear_cache') },
         { type: 'separator' },
@@ -5863,6 +5892,7 @@ const COMMANDS_SAFE_FOR_REMOTE = new Set([
   'desktop_host_probe',
   'desktop_switch_to_local',
   'desktop_new_window',
+  'desktop_set_menu_shortcuts',
   'desktop_new_window_at_url',
   'desktop_new_window_for_host',
   'desktop_set_window_title',
@@ -5898,6 +5928,17 @@ ipcMain.handle('openchamber:invoke', async (event, command, args) => {
 // layout. The answer is about the asking page only, so any origin may ask.
 ipcMain.on('openchamber:take-safe-start', (event) => {
   event.returnValue = takeSafeStart(event.sender);
+});
+
+// Sync, because the document's own scripts read these values as they run.
+ipcMain.on('openchamber:read-runtime-config', (event) => {
+  event.returnValue = isRuntimeConfigFrame(event.senderFrame)
+    ? {
+      localOrigin: state.localOrigin || state.sidecarUrl || '',
+      apiBaseUrl: state.apiBaseUrl || state.sidecarUrl || '',
+      clientToken: state.clientToken || '',
+    }
+    : null;
 });
 
 ipcMain.handle('openchamber:dialog:open', async (event, options) => {
@@ -6078,8 +6119,8 @@ const revealMainWindow = async () => {
 
 // Open a session in the main window, creating one first if none is alive. A
 // freshly created window can't receive an immediate emit (its renderer hasn't
-// mounted its listeners yet), so we queue the session as a pending deep-link —
-// the did-finish-load handler flushes it once the window is ready.
+// mounted its listeners yet), so we queue the session as a pending deep-link
+// for its renderer to take once it listens.
 const focusMainWindowWithSession = async (sessionId, directory) => {
   if (state.mainWindow && !state.mainWindow.isDestroyed()) {
     if (state.mainWindow.isMinimized()) state.mainWindow.restore();
@@ -6316,11 +6357,9 @@ app.whenReady().then(async () => {
   hardenBrowserPanelSession();
   setupAutoUpdater();
 
+  applyApplicationMenu();
   if (process.platform === 'darwin') {
-    Menu.setApplicationMenu(buildMacMenu());
     void applyDevDockIdentity({ app, electronDir: __dirname, log });
-  } else {
-    Menu.setApplicationMenu(buildAutoHiddenMenu());
   }
   setupTray();
   applyDesktopMiniChatGlobalShortcut();
@@ -6365,6 +6404,7 @@ app.whenReady().then(async () => {
     state.startupResolved = !(await shouldSkipLocalServer());
     state.initScript = buildInitScript(localOrigin, state.bootOutcome, apiBaseUrl, clientToken, state.requestHeaders);
     log.info('[electron] started in background without window');
+    initialStartup.resolve();
     replayDeferredAppEvents();
     scheduleCompileCacheSettle();
     return;
@@ -6378,6 +6418,7 @@ app.whenReady().then(async () => {
     onPlainLocalBoot: startEarlyMainNavigation,
   });
   await activateMainWindow(initialUrl, localOrigin, bootOutcome, { apiBaseUrl, clientToken, requestHeaders });
+  initialStartup.resolve();
   replayDeferredAppEvents();
   scheduleCompileCacheSettle();
 

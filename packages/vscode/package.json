@@ -2,7 +2,7 @@
   "name": "openchamber",
   "displayName": "OpenChamber",
   "description": "%extension.description%",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "publisher": "fedaykindev",
   "private": true,
   "repository": {
@@ -283,11 +283,13 @@
         "openchamber.apiUrl": {
           "type": "string",
           "default": "",
+          "scope": "machine-overridable",
           "description": "%configuration.apiUrl.description%"
         },
         "openchamber.opencodeBinary": {
           "type": "string",
           "default": "",
+          "scope": "machine-overridable",
           "description": "%configuration.opencodeBinary.description%"
         }
       }
