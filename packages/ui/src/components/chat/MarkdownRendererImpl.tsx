@@ -25,7 +25,7 @@ import { copyMarkdownToClipboard, copyTextToClipboard } from '@/lib/clipboard';
 import { getRuntimeKey, subscribeRuntimeEndpointChanged } from '@/lib/runtime-switch';
 import { FadeInOnReveal } from './message/FadeInOnReveal';
 import type { ToolPopupContent } from './message/types';
-import { getMarkdownCjk, getMarkdownProcessingOptions, markdownMath } from './markdown/streamdownPlugins';
+import { getMarkdownCjk, getMarkdownProcessingOptions, markdownMath, remarkLiteralText } from './markdown/streamdownPlugins';
 import { remarkEmojiShortcodes } from './markdown/remarkEmojiShortcodes';
 import { remarkRepositoryReferences } from './markdown/remarkRepositoryReferences';
 import { fenceUiBlocks } from './uiBlocks/taggedBlocks';
@@ -274,6 +274,7 @@ export interface MarkdownContentProps {
   messageId?: string;
   enableFileReferences?: boolean;
   disableLinkSafety?: boolean;
+  tableWidthScope?: string;
   loopbackPreview?: boolean;
   documentAssets?: MarkdownDocumentAssets;
   onShowPopup?: (content: ToolPopupContent) => void;
@@ -289,6 +290,8 @@ export interface MarkdownContentProps {
   windowed?: boolean;
   /** `openui-lang` fences draw as UI blocks; only assistant replies set it. */
   uiBlocks?: boolean;
+  /** Text a person typed: no HTML and no character references, so `<b>` and `&amp;` read as typed (`remarkLiteralText`). */
+  literalText?: boolean;
 }
 
 /** Shared screen/copy/image renderer. Streamdown owns the Markdown subtree. */
@@ -307,6 +310,7 @@ export function MarkdownContent({
   messageId,
   enableFileReferences = true,
   disableLinkSafety,
+  tableWidthScope,
   loopbackPreview = false,
   documentAssets,
   onShowPopup,
@@ -318,6 +322,7 @@ export function MarkdownContent({
   emojiShortcodes,
   windowed = false,
   uiBlocks = false,
+  literalText = false,
 }: MarkdownContentProps) {
   const themeSystem = useOptionalThemeSystem();
   const theme = themeSystem?.currentTheme ?? getDefaultTheme(
@@ -422,9 +427,10 @@ export function MarkdownContent({
     const extra: Pluggable[] = [];
     if (emojiShortcodes) extra.push([remarkEmojiShortcodes, emojiShortcodes]);
     if (repositoryLinks) extra.push([remarkRepositoryReferences, repositoryLinks]);
+    if (literalText) extra.push(remarkLiteralText);
     if (extra.length === 0) return base;
     return { ...base, remarkPlugins: [...(base.remarkPlugins ?? []), ...extra] };
-  }, [allowRawHtml, emojiShortcodes, isVSCode, repositoryLinks, singleTilde]);
+  }, [allowRawHtml, emojiShortcodes, isVSCode, literalText, repositoryLinks, singleTilde]);
   const presentation = React.useMemo(() => ({
     directory,
     fileReferences,
@@ -437,6 +443,7 @@ export function MarkdownContent({
     uiBlocks: uiBlocks && !purpose,
     settledReply: uiBlocks && !purpose && settled && sessionId && messageId ? { sessionId, messageId } : null,
     disableLinkSafety,
+    tableWidthScope,
     theme,
     mermaidControls,
     onShowPopup,
@@ -444,7 +451,7 @@ export function MarkdownContent({
     confirmFile,
     code,
   }), [
-    directory, fileReferences, fileNavigation, loopbackPreview, settled, purpose, uiBlocks, sessionId, messageId, disableLinkSafety, theme,
+    directory, fileReferences, fileNavigation, loopbackPreview, settled, purpose, uiBlocks, sessionId, messageId, disableLinkSafety, tableWidthScope, theme,
     mermaidControls, onShowPopup, onExportCode, confirmFile, code,
   ]);
 

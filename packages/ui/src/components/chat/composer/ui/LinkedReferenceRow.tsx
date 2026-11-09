@@ -67,22 +67,22 @@ export function LinkedReferenceRow(props: LinkedReferenceRowProps) {
                     </span>
                 ) : null}
                 <span className="text-muted-foreground flex-shrink-0">
-                    {numberLabel}
+                    {numberLabel === title ? null : numberLabel}
                     {author ? (
                         <span className="ms-1">
                             {t('chat.chatInput.linked.byAuthor', { author: author.login })}
                         </span>
                     ) : null}
                 </span>
-                <span className="text-foreground truncate max-w-[240px]">{title}</span>
+                <span dir="auto" className="text-foreground truncate max-w-[240px]">{title}</span>
                 {branches ? (
-                    <span className="min-w-0 truncate text-muted-foreground">
+                    <span dir="ltr" className="min-w-0 truncate text-muted-foreground">
                         {branches.head} → {branches.base}
                     </span>
                 ) : null}
             </button>
             <span className="flex items-center flex-shrink-0">
-                <Tooltip>
+                {url ? <Tooltip>
                     <TooltipTrigger asChild>
                         <a
                             href={url}
@@ -95,7 +95,7 @@ export function LinkedReferenceRow(props: LinkedReferenceRowProps) {
                         </a>
                     </TooltipTrigger>
                     <TooltipContent side="top" sideOffset={6}>{openInBrowserLabel}</TooltipContent>
-                </Tooltip>
+                </Tooltip> : null}
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <button

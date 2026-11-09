@@ -17,7 +17,7 @@ import { ElectronSshManager } from './ssh-manager.mjs';
 import { collectLocalFileDiagnostics, collectSshBufferDiagnostics } from '@openchamber/web/server/lib/diagnostics/local-files.js';
 import { replaceFileWithRetry } from './windows-file-replace.mjs';
 import { persistMainWindowState } from './window-state.mjs';
-import { attachWindowVisibility, isNativeWindowVisible } from './window-visibility.mjs';
+import { attachWindowEvents, isNativeWindowVisible } from './window-events.mjs';
 import { createTrayController } from './tray.mjs';
 import { buildDockMenuTemplate, buildUnreadJumpList, isJumpListSessionId } from './dock-menu.mjs';
 import { createSessionLinkGate } from './session-link-gate.mjs';
@@ -104,16 +104,20 @@ import { menuAccelerator, normalizeMenuShortcuts } from './menu-shortcuts.mjs';
 import { createCopyLinkMenuHook } from './context-menu-clipboard.mjs';
 import { createCopyMenuAction } from './menu-copy-action.mjs';
 import {
+  CANARY_MIRROR_UPDATER_FEED,
   CANARY_UPDATER_FEED,
   PRODUCTION_UPDATER_FEED,
+  STABLE_MIRROR_UPDATER_FEED,
   isCanaryVersion,
   isUpdateChannel,
   normalizeUpdateChannel,
+  pickUpdaterSource,
   resolveUpdaterFeed,
 } from './updater-feed.mjs';
 import {
   buildLinuxInstalledApps,
   buildLinuxOpenSpecs,
+  runLinuxSpecChain,
   fetchLinuxAppIcons,
   filterLinuxInstalledApps,
   readLinuxDesktopEntries,
@@ -329,9 +333,13 @@ const state = {
   // path may end the process: the update sequence owns the exit.
   updateInstallPending: false,
   pendingUpdate: null,
-  // The channel the updater's feed was last pointed at (applyUpdaterChannel),
-  // and the update check in flight, if any.
+  // The channel and source ('mirror' or 'github') the updater's feed was last
+  // pointed at (applyUpdaterChannel), and the update check in flight, if any.
   updaterChannel: null,
+  updaterSource: null,
+  // When the Stable mirror last failed a check or a download; checks read
+  // GitHub for a while after (pickUpdaterSource).
+  updaterMirrorFailedAt: null,
   updateCheck: null,
   updateDownloadPromise: null,
   updateDownloadVersion: null,
@@ -1998,6 +2006,31 @@ const takePendingSessionDeepLinks = () => {
   return taken;
 };
 
+// `openchamber://extensions/install?url=…`: any web page can raise this link, so
+// only an https repository passes, and the app asks before it fetches anything.
+const extensionInstallUrl = (link) => {
+  if (link.value !== 'install') return null;
+  const value = readDeepLinkQueryParam(link.raw, 'url');
+  try {
+    const url = new URL(value ?? '');
+    return url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
+};
+
+const takePendingExtensionInstalls = () => {
+  const taken = [];
+  for (let index = pendingDeepLinks.length - 1; index >= 0; index -= 1) {
+    const link = pendingDeepLinks[index];
+    if (link.type !== 'extensions') continue;
+    pendingDeepLinks.splice(index, 1);
+    const url = extensionInstallUrl(link);
+    if (url) taken.unshift(url);
+  }
+  return taken;
+};
+
 const parseDeepLink = (raw) => {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
@@ -2163,6 +2196,16 @@ const dispatchDeepLink = (link) => {
     emitToPrimaryWindow('openchamber:open-session', sessionDeepLinkTarget(link));
     return;
   }
+  if (link.type === 'extensions') {
+    const url = extensionInstallUrl(link);
+    if (!url) {
+      log.warn('[electron] invalid extension install link');
+      return;
+    }
+    focusForegroundWindow();
+    emitToPrimaryWindow('openchamber:install-extension', { url });
+    return;
+  }
   if (link.type === 'host' && link.value) {
     void switchToHostById(link.value);
     return;
@@ -2178,7 +2221,7 @@ const flushPendingDeepLinks = ({ includeSessions }) => {
   const kept = [];
   while (pendingDeepLinks.length > 0) {
     const link = pendingDeepLinks.shift();
-    if (link.type === 'session' && !includeSessions) {
+    if ((link.type === 'session' || link.type === 'extensions') && !includeSessions) {
       kept.push(link);
       continue;
     }
@@ -2201,7 +2244,7 @@ const handleDeepLinks = (urls) => {
   for (const raw of urls) {
     const parsed = parseDeepLink(raw);
     if (!parsed) continue;
-    if (isMainWindowReadyForDeepLink() && (parsed.type !== 'session' || mainWindowSessionLinkGate.isListening())) {
+    if (isMainWindowReadyForDeepLink() && ((parsed.type !== 'session' && parsed.type !== 'extensions') || mainWindowSessionLinkGate.isListening())) {
       dispatchDeepLink(parsed);
     } else {
       pendingDeepLinks.push(parsed);
@@ -2657,7 +2700,7 @@ const createBrowserWindow = ({ label, restoreGeometry, url, runtimeConfig = {}, 
   browserWindow.on('blur', () => {
     state.focusedWindowIds.delete(browserWindow.id);
   });
-  attachWindowVisibility(browserWindow, emitToWindow);
+  attachWindowEvents(browserWindow, emitToWindow);
 
   // Traffic lights disappear during dock-restore animation when using
   // titleBarStyle:'hidden' + custom trafficLightPosition. macOS caches a
@@ -2685,9 +2728,6 @@ const createBrowserWindow = ({ label, restoreGeometry, url, runtimeConfig = {}, 
   }
 
   browserWindow.on('resize', () => {
-    if (process.platform === 'darwin') {
-      emitToWindow(browserWindow, 'openchamber:window-resized');
-    }
     debounceWindowStatePersist(browserWindow, false);
   });
   browserWindow.on('maximize', () => {
@@ -3620,7 +3660,7 @@ const resolveInitialUrl = async ({ onPlainLocalBoot = null } = {}) => {
 const UPDATER_E2E_BUILD = typeof __OPENCHAMBER_UPDATER_E2E_BUILD__ !== 'undefined'
   && __OPENCHAMBER_UPDATER_E2E_BUILD__ === true;
 
-const readUpdateChannel = () => normalizeUpdateChannel(readSettingsRoot().desktopUpdateChannel);
+const readUpdateChannel = () => normalizeUpdateChannel(readSettingsRoot().desktopUpdateChannel, APP_VERSION);
 
 /**
  * Points the updater at the chosen channel's feed; every check re-reads the
@@ -3628,14 +3668,14 @@ const readUpdateChannel = () => normalizeUpdateChannel(readSettingsRoot().deskto
  * restart. Stable from a Canary build allows the downgrade to the latest
  * release, which is the way back; a release build never downgrades.
  */
-const applyUpdaterChannel = (channel) => {
-  if (state.updaterChannel === channel) return;
+const applyUpdaterChannel = (channel, source = pickUpdaterSource({ mirrorFailedAt: state.updaterMirrorFailedAt })) => {
+  if (state.updaterChannel === channel && state.updaterSource === source) return;
   // An update found on the other channel is not this channel's; the next
   // check starts clean (a failed feed otherwise keeps it, #5921).
-  if (state.updaterChannel !== null) state.pendingUpdate = null;
-  const feed = resolveUpdaterFeed({ testBuild: UPDATER_E2E_BUILD, channel });
-  // Both published feeds carry the Windows ARM64 manifest; the E2E fixture does not.
-  const updaterChannel = feed === PRODUCTION_UPDATER_FEED || feed === CANARY_UPDATER_FEED
+  if (state.updaterChannel !== null && state.updaterChannel !== channel) state.pendingUpdate = null;
+  const feed = resolveUpdaterFeed({ testBuild: UPDATER_E2E_BUILD, channel, source });
+  // Every published feed carries the Windows ARM64 manifest; the E2E fixture does not.
+  const updaterChannel = [PRODUCTION_UPDATER_FEED, CANARY_UPDATER_FEED, STABLE_MIRROR_UPDATER_FEED, CANARY_MIRROR_UPDATER_FEED].includes(feed)
     ? resolveUpdaterChannel({ platform: process.platform, architecture: process.arch })
     : null;
   if (updaterChannel) {
@@ -3644,8 +3684,10 @@ const applyUpdaterChannel = (channel) => {
   autoUpdater.setFeedURL(feed);
   autoUpdater.allowDowngrade = channel === 'stable' && isCanaryVersion(APP_VERSION);
   state.updaterChannel = channel;
+  state.updaterSource = source;
   log.info('[electron] updater feed configured', {
     channel,
+    source,
     provider: feed.provider,
     target: feed.provider === 'github' ? `${feed.owner}/${feed.repo}` : feed.url,
     manifest: updaterChannel || 'latest',
@@ -3918,52 +3960,6 @@ const buildPlatformInstalledApps = async (apps) => {
     return buildWindowsInstalledApps(apps);
   }
   return buildInstalledApps(apps);
-};
-
-const spawnDetachedLinux = (program, args) => new Promise((resolve, reject) => {
-  const child = spawn(program, args, {
-    detached: true,
-    stdio: 'ignore',
-  });
-  let settled = false;
-  const finish = (callback, value) => {
-    if (settled) return;
-    settled = true;
-    callback(value);
-  };
-  child.once('error', (error) => finish(reject, error));
-  child.once('spawn', () => {
-    child.unref();
-    finish(resolve);
-  });
-});
-
-const runLinuxSpecChain = async (specs, appName) => {
-  if (!Array.isArray(specs) || specs.length === 0) {
-    throw new Error(`Failed to open in ${appName}: no launch candidates`);
-  }
-
-  const failures = [];
-  for (const spec of specs) {
-    if (spec.kind === 'default') {
-      if (spec.targetKind === 'file') {
-        shell.showItemInFolder(spec.targetPath);
-        return;
-      }
-      const errorMessage = await shell.openPath(spec.targetPath);
-      if (!errorMessage) return;
-      failures.push(`default opener: ${errorMessage}`);
-      continue;
-    }
-
-    try {
-      await spawnDetachedLinux(spec.program, spec.args);
-      return;
-    } catch (error) {
-      failures.push(`${spec.program}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-  throw new Error(`Failed to open in ${appName}: ${failures.join('; ')}`);
 };
 
 const parseSshConfigImports = () => {
@@ -4788,7 +4784,8 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
             locale: normalizeMenuLocale(readPreferredLocale()),
             onAction: (action) => { void dispatchTrayAction(action); },
           });
-          app.dock.setMenu(template.length > 0 ? Menu.buildFromTemplate(template) : null);
+          // An empty menu clears it; Electron 45 rejects null here.
+          app.dock.setMenu(Menu.buildFromTemplate(template));
         }
         if (process.platform === 'win32' && app.isPackaged) {
           const jumpList = buildUnreadJumpList(args, {
@@ -4886,7 +4883,7 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
           appName,
           targetKind: 'project',
           entries,
-        }), appName);
+        }), appName, { shell });
         return null;
       }
       if (process.platform !== 'darwin') {
@@ -4921,7 +4918,7 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
           appName,
           targetKind: 'file',
           entries,
-        }), appName);
+        }), appName, { shell });
         return null;
       }
       if (process.platform !== 'darwin') {
@@ -5152,13 +5149,34 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
       if (state.updateCheck && readUpdateChannel() !== state.updaterChannel) {
         await state.updateCheck.catch(() => null);
       }
-      applyUpdaterChannel(readUpdateChannel());
+      const channel = readUpdateChannel();
+      applyUpdaterChannel(channel);
+      // The source this check started on. A check running beside it can fall
+      // back first and move the shared state to GitHub; this one still owes
+      // its caller the same fallback.
+      const startedOn = state.updaterSource;
       const currentVersion = APP_VERSION;
-      const check = checkForDesktopUpdate({
+      const runCheck = () => checkForDesktopUpdate({
         autoUpdater,
         currentVersion,
         pendingUpdate: state.pendingUpdate,
+        missingFeedIsError: state.updaterSource === 'mirror',
       });
+      // The whole check, the GitHub retry included, is what a channel switch
+      // waits for: a switch that ran between the two would have its feed
+      // replaced by the retry.
+      const check = (async () => {
+        try {
+          return await runCheck();
+        } catch (error) {
+          if (startedOn !== 'mirror') throw error;
+          // The mirror failed: GitHub answers this check and the next ones for a while.
+          log.warn('[electron] update mirror failed, checking GitHub', error instanceof Error ? error.message : String(error));
+          state.updaterMirrorFailedAt = Date.now();
+          applyUpdaterChannel(channel, 'github');
+          return runCheck();
+        }
+      })();
       state.updateCheck = check;
       let result;
       try {
@@ -5204,6 +5222,11 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
           data: {},
         }));
         return null;
+      } catch (error) {
+        // A retry checks first (useUpdateStore.downloadUpdate), so marking the
+        // mirror failed sends the retry's check and download to GitHub.
+        if (state.updaterSource === 'mirror') state.updaterMirrorFailedAt = Date.now();
+        throw error;
       } finally {
         setTaskbarProgress(-1);
       }
@@ -5347,6 +5370,10 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
       if (!browserWindow || !state.mainWindow || browserWindow.id !== state.mainWindow.id) return [];
       return pendingHostActions.splice(0, pendingHostActions.length);
 
+    case 'desktop_take_pending_extension_installs':
+      // Install links open in the main window only.
+      if (!browserWindow || !state.mainWindow || browserWindow.id !== state.mainWindow.id) return [];
+      return takePendingExtensionInstalls();
     case 'desktop_take_pending_session_links':
       // Session links open in the main window only.
       if (!browserWindow || !state.mainWindow || browserWindow.id !== state.mainWindow.id) return [];
@@ -5746,12 +5773,12 @@ contextMenu({
   showCopyLink: true,
 });
 
-const loadUrlInsideWebContents = (contents, rawUrl) => {
+const loadUrlInsideWebContents = (contents, rawUrl, loadOptions) => {
   try {
     const url = new URL(rawUrl);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
     if (contents.isDestroyed()) return false;
-    void contents.loadURL(url.toString()).catch((error) => {
+    void contents.loadURL(url.toString(), loadOptions).catch((error) => {
       log.warn('[webview] failed to load popup URL in place:', error);
     });
     return true;
@@ -5806,6 +5833,31 @@ const trackBrowserPanelPopup = (contents, popup) => {
   });
 };
 
+/**
+ * Gives a popup the panel's user agent. The popup already runs in the panel's
+ * session, but Electron applies that session's user agent to a window.open
+ * window only on navigations the app starts (electron/electron#45897): the
+ * opener's own navigation sends Electron's default agent, and every later
+ * navigation in the popup inherits it. So the first navigation is cancelled
+ * before it sends anything and started again from here. A form posted into a
+ * new window keeps Electron's agent: starting it again would drop the form.
+ */
+const loadBrowserPanelPopupWithPanelUserAgent = (popup, { url, referrer }) => {
+  const contents = popup.webContents;
+  contents.once('will-navigate', (event, navigationUrl) => {
+    if (navigationUrl !== url) return;
+    event.preventDefault();
+    setImmediate(() => {
+      // The page may close its popup before this runs.
+      if (contents.isDestroyed()) return;
+      loadUrlInsideWebContents(contents, url, {
+        userAgent: contents.session.getUserAgent(),
+        httpReferrer: referrer,
+      });
+    });
+  });
+};
+
 app.on('web-contents-created', (_event, contents) => {
   if (contents.getType() === 'window') {
     guardAttachedWebviews(contents);
@@ -5817,7 +5869,7 @@ app.on('web-contents-created', (_event, contents) => {
   // theirs would leave the space's session for the user's.
   const isUserPanelPage = () => contents.session === session.fromPartition(BROWSER_PANEL_PARTITION);
 
-  contents.setWindowOpenHandler(({ url, disposition, postBody }) => {
+  contents.setWindowOpenHandler(({ url, disposition, postBody, referrer }) => {
     const target = isUserPanelPage()
       ? browserPanelWindowOpenTarget({ url, disposition, hasPostBody: Boolean(postBody) })
       : 'in-place';
@@ -5830,6 +5882,13 @@ app.on('web-contents-created', (_event, contents) => {
           autoHideMenuBar: true,
           webPreferences: BROWSER_PANEL_POPUP_WEB_PREFERENCES,
         },
+        // Created here so the window is tied to this request and its form body.
+        createWindow: (options) => {
+          const popup = new BrowserWindow(options);
+          trackBrowserPanelPopup(contents, popup);
+          if (!postBody) loadBrowserPanelPopupWithPanelUserAgent(popup, { url, referrer });
+          return popup.webContents;
+        },
       };
     }
     if (target === 'tab' || target === 'background-tab') {
@@ -5838,10 +5897,6 @@ app.on('web-contents-created', (_event, contents) => {
       loadUrlInsideWebContents(contents, url);
     }
     return { action: 'deny' };
-  });
-
-  contents.on('did-create-window', (popup) => {
-    trackBrowserPanelPopup(contents, popup);
   });
 });
 
@@ -5937,6 +5992,9 @@ ipcMain.on('openchamber:read-runtime-config', (event) => {
       localOrigin: state.localOrigin || state.sidecarUrl || '',
       apiBaseUrl: state.apiBaseUrl || state.sidecarUrl || '',
       clientToken: state.clientToken || '',
+      // The asking window's own: a window opened for another host must not
+      // send the main window's headers there.
+      requestHeaders: sanitizeRuntimeRequestHeaders(BrowserWindow.fromWebContents(event.sender)?.__ocRuntimeConfig?.requestHeaders || {}),
     }
     : null;
 });
