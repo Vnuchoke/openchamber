@@ -161,6 +161,26 @@ provider logos, so Settings, every model picker, the agent status chip, and
 the message footer agree. The status chip and footer used to draw the logo
 URL themselves, which skipped a chosen icon.
 
+Any provider can also carry an uploaded logo image (`lib/customProviderLogos.ts`,
+routes in `packages/web/server/lib/opencode/provider-logo-routes.js`).
+`ProviderLogo` draws it first, then a chosen icon, an active extension's logo
+(`contributes.providerLogos`, `lib/guests/provider-logos.ts`), the bundled logo,
+the models.dev logo and the generic fallback. An upload or an extension's logo
+keeps its colours, so it gets no `dark:invert`. While one loads the slot stays
+empty at its size, except that a bundled logo stays on screen until an
+extension's replaces it, and a failed load or draw falls through to the next
+mark. VS Code keeps the guest catalog empty, so extension logos do not reach
+it; the phone loads the catalog and draws them like the desktop. A custom provider sets the image in its edit form, beside the icon
+picker, and Save applies what the user did there after the provider itself is
+saved: a picked file is uploaded, Remove deletes the stored image, and an
+untouched field keeps whatever is stored (a logo kept from when the provider
+was last configured, or one another client just uploaded). A failed image write
+is its own toast and does not reopen the form, whose next Save would store the
+key again. Every other provider, and a custom one while
+enterprise mode hides its form, sets it in a Logo section on its page, applied
+at once. The chosen icon stays the fallback. VS Code runs no OpenChamber server,
+so it neither offers the upload nor draws an uploaded logo; it shows the icon.
+
 The "Connect provider" page lists `GET /api/integration` minus the
 integrations that already have a connection, MCP OAuth registrations
 (`mcp_*`), web search providers (the ones `websearch` lists, and integrations
@@ -209,9 +229,14 @@ with `oauth` methods, so signing in is the same connect / status /
 complete flow the Providers page runs. `mcp/McpOAuthSignIn.tsx` looks the
 integration up by server name in the server's directory (the registration is
 per Location) and mounts the shared `providers/ProviderOAuthMethods.tsx`
-with that directory. While the server reports `needs_auth`, the status card
-shows its sign-in row; once the credential is stored, the page connects the
-server again, which is what moves it out of `needs_auth` or `failed`.
+with that directory. It renders nothing until the integration shows up; a
+caller with nothing else on screen passes `onUnavailable` to hear when the
+lookup gives up. While the server reports `needs_auth`, the status card
+shows its sign-in row, whose button reads "Sign in" so it is not confused with
+the header's Connect, which only retries the connection. Once the credential
+is stored, the page connects the server again, which is what moves it out of
+`needs_auth` or `failed`. The Work status panel's MCP rows start the same
+sign-in from their Sign in pill (`chat/work-status/DOCUMENTATION.md`).
 
 A started sign-in keeps its row until it completes or fails, whatever the
 status says (`onActiveChange`). A failed one stays only while the status
